@@ -15,9 +15,13 @@ interface Workout {
   sets: number;
   reps: number;
   weight_kg: number;
+  member_name: string;
 }
 
 export default function AdminDashboard() {
+  // --- STATE: ACTIVE MEMBER ---
+  const [activeMember, setActiveMember] = useState("Main Athlete");
+
   // --- STATE: WORKOUTS ---
   const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("");
@@ -38,50 +42,65 @@ export default function AdminDashboard() {
   const [inputSleep, setInputSleep] = useState("");
   const [metricsStatus, setMetricsStatus] = useState("");
 
-  // --- FETCH ALL DATA ---
+  // --- FETCH ALL DATA (Filtered by Active Member) ---
   const fetchDashboardData = async () => {
-    // 1. Get recent workouts
+    // 1. Get recent workouts for THIS member
     const { data: wData } = await supabase
       .from("workouts")
       .select("*")
+      .eq("member_name", activeMember)
       .order("created_at", { ascending: false })
       .limit(3);
     if (wData) setRecentWorkouts(wData);
+    else setRecentWorkouts([]);
 
-    // 2. Get today's protein total
+    // 2. Get today's protein total for THIS member
     const today = new Date().toISOString().split("T")[0];
     const { data: nData } = await supabase
       .from("nutrition_logs")
       .select("protein_grams")
+      .eq("member_name", activeMember)
       .gte("created_at", today);
     if (nData) {
       const total = nData.reduce((acc, curr) => acc + Number(curr.protein_grams), 0);
       setDailyProtein(total);
+    } else {
+      setDailyProtein(0);
     }
 
-    // 3. Get latest metrics
+    // 3. Get latest metrics for THIS member
     const { data: mData } = await supabase
       .from("recovery_metrics")
       .select("*")
+      .eq("member_name", activeMember)
       .order("created_at", { ascending: false })
       .limit(1);
     if (mData && mData.length > 0) {
       setCurrentWeight(mData[0].body_weight_kg);
       setCurrentSleep(mData[0].sleep_hours);
+    } else {
+      setCurrentWeight(0);
+      setCurrentSleep(0);
     }
   };
 
-  // Run on page load
+  // Run on page load AND whenever the active member changes
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeMember]);
 
   // --- SUBMIT HANDLERS ---
   const handleLogWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
     setWorkoutStatus("Logging lift...");
     const { error } = await supabase.from("workouts").insert([
-      { exercise_name: exercise, sets: parseInt(sets), reps: parseInt(reps), weight_kg: parseFloat(weight) }
+      { 
+        member_name: activeMember,
+        exercise_name: exercise, 
+        sets: parseInt(sets), 
+        reps: parseInt(reps), 
+        weight_kg: parseFloat(weight) 
+      }
     ]);
     if (error) setWorkoutStatus("Error saving workout.");
     else {
@@ -95,7 +114,7 @@ export default function AdminDashboard() {
   const handleQuickLogNutrition = async (food: string, protein: number) => {
     setNutritionStatus(`Logging ${food}...`);
     const { error } = await supabase.from("nutrition_logs").insert([
-      { food_item: food, protein_grams: protein }
+      { member_name: activeMember, food_item: food, protein_grams: protein }
     ]);
     if (error) setNutritionStatus("Error logging food.");
     else {
@@ -112,7 +131,7 @@ export default function AdminDashboard() {
     const s = inputSleep ? parseFloat(inputSleep) : currentSleep;
 
     const { error } = await supabase.from("recovery_metrics").insert([
-      { body_weight_kg: w, sleep_hours: s }
+      { member_name: activeMember, body_weight_kg: w, sleep_hours: s }
     ]);
     if (error) setMetricsStatus("Error saving metrics.");
     else {
@@ -123,17 +142,33 @@ export default function AdminDashboard() {
     }
   };
 
-  // Calculate UI progress bar
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-6">
         
         <header className="border-b border-slate-800 pb-4">
           <h1 className="text-4xl font-bold mb-2">Iron Keep HQ</h1>
-          <h2 className="text-xl text-slate-400">Athlete Command Center</h2>
+          <h2 className="text-xl text-slate-400">Gym Roster & Command Center</h2>
         </header>
+
+        {/* --- MEMBER SELECTOR BAR --- */}
+        <div className="bg-slate-800 border border-blue-900/50 rounded-lg p-4 flex flex-col md:flex-row items-center gap-4 shadow-lg shadow-blue-900/10">
+          <label className="text-blue-400 font-bold uppercase tracking-widest text-sm whitespace-nowrap">
+            Active Member :
+          </label>
+          <input 
+            type="text" 
+            value={activeMember}
+            onChange={(e) => setActiveMember(e.target.value)}
+            placeholder="Type member name..."
+            className="w-full md:w-64 bg-slate-900 border border-slate-600 rounded p-3 text-white font-bold text-lg focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          <p className="text-slate-400 text-sm italic">
+            (Changing the name instantly loads their specific logs)
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
@@ -148,13 +183,13 @@ export default function AdminDashboard() {
                   <input type="number" required value={reps} onChange={(e) => setReps(e.target.value)} placeholder="Reps" className="w-1/3 bg-slate-800 border border-slate-700 rounded p-3 text-white focus:outline-none" />
                   <input type="number" required step="0.5" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (kg)" className="w-1/3 bg-slate-800 border border-slate-700 rounded p-3 text-white focus:outline-none" />
                 </div>
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-bold py-3 rounded mt-2">Log Workout</button>
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-bold py-3 rounded mt-2">Log Lift for {activeMember}</button>
                 {workoutStatus && <p className="text-center mt-2 text-green-400">{workoutStatus}</p>}
               </form>
             </div>
 
             <div className="mt-6 border-t border-slate-800 pt-4">
-              <h4 className="text-sm text-slate-400 uppercase tracking-wider mb-3">Recent Lifts</h4>
+              <h4 className="text-sm text-slate-400 uppercase tracking-wider mb-3">Recent Lifts ({activeMember})</h4>
               <div className="space-y-2">
                 {recentWorkouts.map((workout) => (
                   <div key={workout.id} className="flex justify-between items-center bg-slate-800 p-3 rounded border border-slate-700">
@@ -175,7 +210,6 @@ export default function AdminDashboard() {
                   <span className="text-slate-300">Daily Protein Target</span>
                   <span className="font-bold text-xl text-white">{dailyProtein} / {proteinTarget}g</span>
                 </div>
-                {/* Progress Bar */}
                 <div className="w-full bg-slate-950 rounded-full h-3">
                   <div className="bg-green-500 h-3 rounded-full transition-all duration-500" style={{ width: `${proteinPercentage}%` }}></div>
                 </div>
@@ -212,7 +246,7 @@ export default function AdminDashboard() {
               
               <div className="bg-slate-800 border border-slate-700 p-6 rounded text-center flex flex-col justify-center">
                 <p className="text-slate-400 text-sm uppercase tracking-wide mb-1">Current Weight</p>
-                <p className="text-4xl font-bold text-white">{currentWeight} <span className="text-xl text-slate-500">kg</span></p>
+                <p className="text-4xl font-bold text-white">{currentWeight || "--"} <span className="text-xl text-slate-500">kg</span></p>
               </div>
               
               <div className="bg-slate-800 border border-slate-700 p-6 rounded text-center flex flex-col justify-center">
@@ -222,11 +256,10 @@ export default function AdminDashboard() {
               
               <div className="bg-slate-800 border border-slate-700 p-6 rounded text-center flex flex-col justify-center">
                 <p className="text-slate-400 text-sm uppercase tracking-wide mb-1">Recent Sleep</p>
-                <p className="text-4xl font-bold text-white">{currentSleep} <span className="text-xl text-slate-500">hrs</span></p>
+                <p className="text-4xl font-bold text-white">{currentSleep || "--"} <span className="text-xl text-slate-500">hrs</span></p>
               </div>
             </div>
 
-            {/* Update Metrics Form */}
             <form onSubmit={handleLogMetrics} className="mt-6 flex flex-col md:flex-row gap-4">
               <input type="number" step="0.1" value={inputWeight} onChange={(e) => setInputWeight(e.target.value)} placeholder={`Log new weight (kg)`} className="flex-1 bg-slate-800 border border-slate-700 rounded p-3 text-white focus:outline-none" />
               <input type="number" step="0.5" value={inputSleep} onChange={(e) => setInputSleep(e.target.value)} placeholder={`Log sleep (hrs)`} className="flex-1 bg-slate-800 border border-slate-700 rounded p-3 text-white focus:outline-none" />
