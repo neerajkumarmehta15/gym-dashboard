@@ -19,6 +19,8 @@ interface MemberData {
   joined_date: string;
   status: string;
   email?: string;
+  gender?: string;
+  photo?: string;
   start_date?: string;
   end_date?: string | null;
   days_left?: number;
@@ -69,6 +71,8 @@ export default function MasterSequence() {
   const [email, setEmail] = useState('');
   const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
   const [durationMonths, setDurationMonths] = useState(1);
+  const [gender, setGender] = useState('Male');
+  const [photoBase64, setPhotoBase64] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- TRACKING & ASSIGNMENT STATE ---
@@ -304,6 +308,17 @@ export default function MasterSequence() {
     initializeEngine();
   }
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault();
     if (!fullName || !phoneNumber || !selectedPlanId) return;
@@ -312,14 +327,74 @@ export default function MasterSequence() {
     const selectedPlan = plans.find(p => p.id === Number(selectedPlanId));
     if (!selectedPlan) return setIsSubmitting(false);
 
-    const { data: newMember, error: memberError } = await supabase
-      .from('members')
-      .insert([{ full_name: fullName, phone_number: phoneNumber, email: email || null, status: 'active' }])
-      .select().single();
+    let insertData: any = {
+      full_name: fullName,
+      phone_number: phoneNumber,
+      status: 'active'
+    };
+
+    let newMember: any = null;
+    let memberError: any = null;
+
+    // Try full insert with email, gender, photo
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .insert([{ ...insertData, email: email || null, gender, photo: photoBase64 || null }])
+        .select().single();
+      newMember = data;
+      memberError = error;
+    } catch (err) {}
+
+    // Fallback 1: retry without photo
+    if (memberError || !newMember) {
+      try {
+        const { data, error } = await supabase
+          .from('members')
+          .insert([{ ...insertData, email: email || null, gender }])
+          .select().single();
+        newMember = data;
+        memberError = error;
+      } catch (err) {}
+    }
+
+    // Fallback 2: retry without gender/photo
+    if (memberError || !newMember) {
+      try {
+        const { data, error } = await supabase
+          .from('members')
+          .insert([{ ...insertData, email: email || null }])
+          .select().single();
+        newMember = data;
+        memberError = error;
+      } catch (err) {}
+    }
+
+    // Fallback 3: retry with core fields only
+    if (memberError || !newMember) {
+      const { data, error } = await supabase
+        .from('members')
+        .insert([insertData])
+        .select().single();
+      newMember = data;
+      memberError = error;
+    }
 
     if (memberError) {
       alert(`Error: ${memberError.message}`);
       return setIsSubmitting(false);
+    }
+
+    // Cache gender and photo in localStorage
+    if (newMember) {
+      if (photoBase64) {
+        const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+        localPhotos[newMember.id] = photoBase64;
+        localStorage.setItem('gymnation_member_photos', JSON.stringify(localPhotos));
+      }
+      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+      localGenders[newMember.id] = gender;
+      localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
     }
 
     const startDate = new Date(joiningDate);
@@ -334,7 +409,7 @@ export default function MasterSequence() {
     }]);
 
     setIsSubmitting(false);
-    setFullName(''); setPhoneNumber(''); setEmail(''); setJoiningDate(new Date().toISOString().split('T')[0]); setDurationMonths(1); setIsModalOpen(false);
+    setFullName(''); setPhoneNumber(''); setEmail(''); setJoiningDate(new Date().toISOString().split('T')[0]); setDurationMonths(1); setGender('Male'); setPhotoBase64(''); setIsModalOpen(false);
     initializeEngine();
   }
 
@@ -493,30 +568,69 @@ export default function MasterSequence() {
       <div className="max-w-6xl mx-auto glass-panel p-6 rounded-2xl relative z-10">
         {isSyncing ? <div className="text-center text-slate-500 py-8 font-mono text-sm">Querying database...</div> : filteredMembers.length === 0 ? <div className="text-center text-slate-500 py-12 text-sm">No records match your filters.</div> : (
           <div className="space-y-3">
-            {filteredMembers.map((member) => (
-              <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-bold text-slate-200">{member.full_name}</h4>
-                    {member.end_date && (
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono uppercase ${
-                        (member.days_left || 0) > 15 
-                          ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' 
-                          : (member.days_left || 0) > 0 
-                            ? 'bg-brand-orange/10 text-brand-orange border border-brand-orange/20' 
-                            : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
-                      }`}>
-                        {(member.days_left || 0) > 0 ? `${member.days_left} Days Left` : 'Expired'}
-                      </span>
+            {filteredMembers.map((member) => {
+              // Resolve gender
+              let resolvedGender = member.gender || 'Male';
+              if (typeof window !== 'undefined' && !member.gender) {
+                const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+                resolvedGender = localGenders[member.id] || 'Male';
+              }
+              
+              // Resolve photo
+              let resolvedPhoto = member.photo || null;
+              if (typeof window !== 'undefined' && !resolvedPhoto) {
+                const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+                resolvedPhoto = localPhotos[member.id] || null;
+              }
+
+              return (
+                <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar Container */}
+                    {resolvedPhoto ? (
+                      <img src={resolvedPhoto} alt={member.full_name} className="w-12 h-12 rounded-full border border-slate-800 object-cover group-hover:scale-105 transition-transform" />
+                    ) : resolvedGender === 'Female' ? (
+                      <div className="w-12 h-12 rounded-full bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
+                        <svg className="w-7 h-7 text-brand-orange animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
+                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                          <path d="M12 1v3M10 2h4" strokeWidth="1" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-brand-volt/10 border border-brand-volt/20 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
+                        <svg className="w-7 h-7 text-brand-volt animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
+                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                          <path d="M12 4V2" strokeWidth="2" />
+                        </svg>
+                      </div>
                     )}
+                    
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-bold text-slate-200">{member.full_name}</h4>
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-gray-400 font-mono uppercase">{resolvedGender}</span>
+                        {member.end_date && (
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono uppercase ${
+                            (member.days_left || 0) > 15 
+                              ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' 
+                              : (member.days_left || 0) > 0 
+                                ? 'bg-brand-orange/10 text-brand-orange border border-brand-orange/20' 
+                                : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
+                          }`}>
+                            {(member.days_left || 0) > 0 ? `${member.days_left} Days Left` : 'Expired'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-400 font-mono space-y-0.5">
+                        <p>{member.phone_number} • {member.email || 'No Email'}</p>
+                        <p className="text-[10px] text-gray-500">
+                          Active: <span className="text-gray-300 font-bold">{member.start_date}</span> ➔ Expiry: <span className="text-gray-300 font-bold">{member.end_date || 'N/A'}</span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-[11px] text-gray-400 font-mono space-y-0.5">
-                    <p>{member.phone_number} • {member.email || 'No Email'}</p>
-                    <p className="text-[10px] text-gray-500">
-                      Active: <span className="text-gray-300 font-bold">{member.start_date}</span> ➔ Expiry: <span className="text-gray-300 font-bold">{member.end_date || 'N/A'}</span>
-                    </p>
-                  </div>
-                </div>
                 <div className="flex items-center gap-4">
                   <button onClick={() => openAthleteDossier(member)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-purple/10 hover:text-brand-purple hover:border-brand-purple/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><Activity className="w-3 h-3" /> Logs</button>
                   
@@ -528,7 +642,8 @@ export default function MasterSequence() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>
@@ -565,9 +680,33 @@ export default function MasterSequence() {
                 <div><label className="block text-xs text-slate-400 mb-1.5">Payment Mode</label><select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40"><option>Cash</option><option>UPI</option><option>Card</option></select></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs text-slate-400 mb-1.5">Joining Date</label><input type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
-                <div><label className="block text-xs text-slate-400 mb-1.5">Duration (Months)</label><input type="number" min={1} max={36} value={durationMonths} onChange={(e) => setDurationMonths(Number(e.target.value))} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2"><label className="block text-xs text-slate-400 mb-1.5">Joining Date</label><input type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
+                <div><label className="block text-xs text-slate-400 mb-1.5">Duration</label><input type="number" min={1} max={36} value={durationMonths} onChange={(e) => setDurationMonths(Number(e.target.value))} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Gender</label>
+                  <select 
+                    value={gender} 
+                    onChange={(e) => setGender(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40"
+                  >
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-slate-400 mb-1.5">Upload Photo <span className="text-[10px] text-gray-500 font-mono">(Optional)</span></label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-brand-orange/40 font-sans" 
+                  />
+                </div>
               </div>
 
               <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-brand-orange to-brand-volt text-slate-950 font-extrabold py-3.5 rounded-xl text-sm transition-opacity hover:opacity-90 tracking-widest uppercase font-sans mt-2">{isSubmitting ? 'Syncing...' : 'Activate & Log Payment'}</button>
