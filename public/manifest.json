@@ -1,6 +1,6 @@
 {
-  "name": "Iron Keep HQ Gym & Athlete Portal",
-  "short_name": "Iron Keep",
+  "name": "GymNation HQ Gym & Athlete Portal",
+  "short_name": "GymNation",
   "description": "Premium gym tracker, progress logs, and check-in scanner.",
   "start_url": "/athlete/dashboard",
   "display": "standalone",

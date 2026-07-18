@@ -284,7 +284,7 @@ export default function MasterSequence() {
 
         <div className="text-center space-y-4 mb-16 z-10">
           <h1 className="text-5xl md:text-7xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt drop-shadow-lg font-sans">
-            Iron Keep HQ
+            GymNation
           </h1>
           <p className="text-gray-400 text-sm uppercase tracking-widest font-mono">Central Command Terminal</p>
         </div>
@@ -314,7 +314,7 @@ export default function MasterSequence() {
 
       <div className="max-w-6xl mx-auto flex justify-between items-center mb-8 border-b border-slate-900 pb-5 relative z-10">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt">IRON KEEP HQ</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt">GYMNATION HQ</h1>
           <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Live Database Matrix Engine</p>
         </div>
         <div className="flex gap-3">
