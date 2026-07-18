@@ -55,18 +55,39 @@ export default function AthleteDashboard() {
 
   const proteinTarget = 160;
 
-  // Initialize Session & Profile
+  // Initialize Session, Profile, and Listen to Auth Changes
   useEffect(() => {
-    const fetchSession = async () => {
+    let isMounted = true;
+
+    // 1. Initial check from storage
+    const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/athlete');
-      } else {
+      if (session && isMounted) {
         setUser(session.user);
         fetchProfile(session.user.email || '');
       }
     };
-    fetchSession();
+    checkSession();
+
+    // 2. Listen for auth changes (including when the Magic Link tokens in the URL are processed)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.email || '');
+      } else {
+        // Redirect to login if initial session verification completed and no session exists
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+          router.push('/athlete');
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function fetchProfile(email: string) {
