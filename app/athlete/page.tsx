@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
 import { Mail, ArrowRight, ShieldCheck } from 'lucide-react';
@@ -10,6 +10,16 @@ export default function AthleteLogin() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'email' | 'check'>('email');
   const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push('/athlete/dashboard');
+      }
+    };
+    checkSession();
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
