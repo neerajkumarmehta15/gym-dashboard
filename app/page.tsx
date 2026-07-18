@@ -23,6 +23,9 @@ interface PlanData {
 export default function GymDashboard() {
   const router = useRouter();
   
+  // --- AUTH STATE ---
+  const [authStatus, setAuthStatus] = useState<'loading' | 'owner' | 'guest'>('loading');
+
   const [members, setMembers] = useState<MemberData[]>([]);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -43,13 +46,18 @@ export default function GymDashboard() {
   async function fetchDashboardData() {
     setLoading(true);
 
-    // --- SECURITY CHECK ---
+    // --- SMART SECURITY CHECK ---
     const { data: { session } } = await supabase.auth.getSession();
+    
+    // If no session exists, show the Gateway instead of forcing a redirect to /login
     if (!session) {
-      router.push('/login'); // Kick unauthorized users out
+      setAuthStatus('guest');
+      setLoading(false);
       return; 
     }
-    // ----------------------
+    
+    // If session exists, load the CRM
+    setAuthStatus('owner');
 
     const { data: memberData } = await supabase.from('members').select('*').order('joined_date', { ascending: false });
     if (memberData) setMembers(memberData);
@@ -133,6 +141,70 @@ export default function GymDashboard() {
   const activeMembers = members.filter(m => m.status === 'active');
   const expiredMembers = members.filter(m => m.status === 'expired');
 
+  // ==========================================
+  // RENDER: LOADING STATE
+  // ==========================================
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-emerald-500 flex flex-col items-center gap-4">
+          <RefreshCw className="w-8 h-8 animate-spin" />
+          <p className="tracking-widest uppercase text-sm font-bold">Initializing Matrix...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // RENDER: GUEST GATEWAY (The Two Buttons)
+  // ==========================================
+  if (authStatus === 'guest') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-600/10 blur-[100px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-cyan-600/10 blur-[100px] rounded-full"></div>
+
+        <div className="text-center space-y-4 mb-16 z-10">
+          <h1 className="text-5xl md:text-7xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-lg">
+            Iron Keep HQ
+          </h1>
+          <p className="text-slate-400 text-lg uppercase tracking-widest">
+            Central Command Terminal
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl z-10">
+          {/* Owner Login Routes to your Supabase Login Page */}
+          <button 
+            onClick={() => router.push('/login')}
+            className="group relative bg-slate-900 border border-emerald-900/50 p-10 rounded-2xl shadow-xl shadow-emerald-900/10 hover:border-emerald-500/50 hover:shadow-emerald-500/20 transition-all text-center flex flex-col items-center justify-center gap-6 overflow-hidden"
+          >
+            <div className="w-20 h-20 bg-emerald-900/40 border border-emerald-500/50 text-emerald-400 rounded-full flex items-center justify-center text-4xl z-10 group-hover:scale-110 transition-transform">🛡️</div>
+            <div className="z-10">
+              <h2 className="text-3xl font-bold text-slate-100 mb-2 tracking-wide">Owner Matrix</h2>
+              <p className="text-slate-400 text-sm uppercase tracking-wider">Manage Roster & Revenue</p>
+            </div>
+          </button>
+
+          {/* Athlete Portal Routes to your Member Folder */}
+          <button 
+            onClick={() => router.push('/member')}
+            className="group relative bg-slate-900 border border-cyan-900/50 p-10 rounded-2xl shadow-xl shadow-cyan-900/10 hover:border-cyan-500/50 hover:shadow-cyan-500/20 transition-all text-center flex flex-col items-center justify-center gap-6 overflow-hidden"
+          >
+            <div className="w-20 h-20 bg-cyan-900/40 border border-cyan-500/50 text-cyan-400 rounded-full flex items-center justify-center text-4xl z-10 group-hover:scale-110 transition-transform">🏋️</div>
+            <div className="z-10">
+              <h2 className="text-3xl font-bold text-slate-100 mb-2 tracking-wide">Athlete Login</h2>
+              <p className="text-slate-400 text-sm uppercase tracking-wider">Log Workouts & Macros</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // RENDER: OWNER CRM (Your Exact Original Code)
+  // ==========================================
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans relative">
       
@@ -147,7 +219,7 @@ export default function GymDashboard() {
         <div className="flex gap-3">
           {/* SECURE LOGOUT BUTTON */}
           <button 
-            onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }} 
+            onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} 
             className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2 rounded-lg text-sm font-semibold text-rose-400 hover:bg-rose-500/20 transition-all"
           >
             Log Out
