@@ -135,9 +135,12 @@ export default function AthleteLogin() {
           </div>
         </div>
 
-        <h2 className="text-3xl font-black text-white mb-2 text-center tracking-tight font-sans">
-          ATHLETE PORTAL
+        <h2 className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight">
+          GYMNATION
         </h2>
+        <p className="text-center text-slate-400 text-xs font-mono uppercase tracking-widest mb-6">
+          Athlete Portal
+        </p>
         <p className="text-center text-gray-400 text-sm mb-6">
           {authMode === 'signin' 
             ? "Sign in directly using your registered account password." 

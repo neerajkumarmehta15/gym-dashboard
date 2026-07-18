@@ -79,3 +79,19 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* Premium 3D Extrusion Text Style */
+.text-3d-gymnation {
+  font-family: var(--font-sans);
+  font-weight: 950;
+  text-transform: uppercase;
+  color: #facc15; /* Bright Yellow base */
+  text-shadow: 
+    1px 1px 0px #ea580c, /* Orange */
+    2px 2px 0px #ea580c,
+    3px 3px 0px #e11d48, /* Rose/Red */
+    4px 4px 0px #e11d48,
+    5px 5px 0px #9f1239, /* Dark Red depth */
+    6px 6px 12px rgba(0, 0, 0, 0.7); /* Soft shadow */
+  letter-spacing: 0.05em;
+}
+

@@ -351,8 +351,8 @@ export default function AthleteDashboard() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-volt to-brand-cyan">
-                GYMNATION LOGS
+              <h1 className="text-2xl md:text-3xl text-3d-gymnation">
+                GYMNATION
               </h1>
             <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
               Athlete Portal: <span className="text-white font-extrabold">{profile.full_name}</span> 
