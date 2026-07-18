@@ -22,6 +22,10 @@ interface Workout {
 export default function MemberPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginName, setLoginName] = useState("");
+  
+  // --- NEW: VERIFICATION STATES ---
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   // --- STATE: MEMBER DATA ---
   const [exercise, setExercise] = useState("");
@@ -39,34 +43,53 @@ export default function MemberPortal() {
   const [inputSleep, setInputSleep] = useState("");
   const [metricsStatus, setMetricsStatus] = useState("");
 
-  async function fetchMemberData() {
-    if (!loginName) return;
+  async function fetchMemberData(verifiedName: string) {
+    if (!verifiedName) return;
     
     // Workouts
-    const { data: wData } = await supabase.from("workouts").select("*").eq("member_name", loginName).order("created_at", { ascending: false }).limit(10);
+    const { data: wData } = await supabase.from("workouts").select("*").eq("member_name", verifiedName).order("created_at", { ascending: false }).limit(10);
     if (wData) setRecentWorkouts(wData);
 
     // Nutrition
     const today = new Date().toISOString().split("T")[0];
-    const { data: nData } = await supabase.from("nutrition_logs").select("protein_grams").eq("member_name", loginName).gte("created_at", today);
+    const { data: nData } = await supabase.from("nutrition_logs").select("protein_grams").eq("member_name", verifiedName).gte("created_at", today);
     if (nData) setDailyProtein(nData.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
 
     // Metrics
-    const { data: mData } = await supabase.from("recovery_metrics").select("*").eq("member_name", loginName).order("created_at", { ascending: false }).limit(1);
+    const { data: mData } = await supabase.from("recovery_metrics").select("*").eq("member_name", verifiedName).order("created_at", { ascending: false }).limit(1);
     if (mData && mData.length > 0) {
       setCurrentWeight(mData[0].body_weight_kg);
       setCurrentSleep(mData[0].sleep_hours);
     }
   }
 
-  useEffect(() => {
-    if (isAuthenticated) fetchMemberData();
-  }, [isAuthenticated]);
-
-  const handleMemberLogin = (e: React.FormEvent) => {
+  // --- UPGRADED LOGIN HANDLER WITH DB VERIFICATION ---
+  const handleMemberLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
+
     if (loginName.trim() !== "") {
-      setIsAuthenticated(true);
+      setIsVerifying(true);
+
+      // Query the CRM members table to verify the name exists (case-insensitive)
+      const { data, error } = await supabase
+        .from('members')
+        .select('full_name')
+        .ilike('full_name', `%${loginName.trim()}%`)
+        .limit(1);
+
+      if (data && data.length > 0) {
+        // Name found in database! Update state to exact database name and log them in.
+        const verifiedName = data[0].full_name;
+        setLoginName(verifiedName); 
+        setIsAuthenticated(true);
+        fetchMemberData(verifiedName);
+      } else {
+        // Name not found
+        setLoginError("Athlete not found in Database. Please check spelling or register.");
+      }
+      
+      setIsVerifying(false);
     }
   };
 
@@ -77,14 +100,14 @@ export default function MemberPortal() {
     if (!error) {
       setWorkoutStatus("Workout Logged! ⚡");
       setExercise(""); setSets(""); setReps(""); setWeight("");
-      fetchMemberData();
+      fetchMemberData(loginName);
       setTimeout(() => setWorkoutStatus(""), 3000);
     }
   };
 
   const handleDeleteWorkout = async (id: string) => {
     const { error } = await supabase.from("workouts").delete().eq("id", id);
-    if (!error) fetchMemberData();
+    if (!error) fetchMemberData(loginName);
   };
 
   const handleQuickLogNutrition = async (food: string, protein: number) => {
@@ -92,7 +115,7 @@ export default function MemberPortal() {
     const { error } = await supabase.from("nutrition_logs").insert([{ member_name: loginName, food_item: food, protein_grams: protein }]);
     if (!error) {
       setNutritionStatus(`Added ${food} (+${protein}g) 🥩`);
-      fetchMemberData();
+      fetchMemberData(loginName);
       setTimeout(() => setNutritionStatus(""), 3000);
     }
   };
@@ -104,7 +127,7 @@ export default function MemberPortal() {
     if (!error) {
       setMetricsStatus("Updated! 📈");
       setInputWeight(""); setInputSleep("");
-      fetchMemberData();
+      fetchMemberData(loginName);
       setTimeout(() => setMetricsStatus(""), 3000);
     }
   };
@@ -118,9 +141,30 @@ export default function MemberPortal() {
         
         <div className="w-full max-w-md bg-slate-900 border border-blue-900/50 p-8 rounded-2xl shadow-xl shadow-blue-900/10">
           <h2 className="text-2xl font-bold text-blue-400 mb-6 flex items-center gap-2 justify-center"><UserPlus className="w-6 h-6"/> Athlete Login</h2>
+          
           <form onSubmit={handleMemberLogin} className="space-y-4">
-            <input type="text" required value={loginName} onChange={(e) => setLoginName(e.target.value)} placeholder="Enter Your First Name" className="w-full bg-slate-950 border border-slate-700 p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none text-center font-bold" />
-            <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold py-4 rounded-lg uppercase tracking-widest shadow-lg hover:opacity-90">View Training Logs</button>
+            <input 
+              type="text" 
+              required 
+              value={loginName} 
+              onChange={(e) => setLoginName(e.target.value)} 
+              placeholder="Enter Your Full Name" 
+              className="w-full bg-slate-950 border border-slate-700 p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none text-center font-bold" 
+            />
+            
+            {loginError && <p className="text-rose-400 text-xs text-center font-bold">{loginError}</p>}
+            
+            <button 
+              type="submit" 
+              disabled={isVerifying}
+              className={`w-full font-bold py-4 rounded-lg uppercase tracking-widest shadow-lg transition-all ${
+                isVerifying 
+                  ? "bg-slate-700 text-slate-400 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:opacity-90"
+              }`}
+            >
+              {isVerifying ? "Verifying..." : "View Training Logs"}
+            </button>
           </form>
         </div>
       </div>
@@ -139,7 +183,7 @@ export default function MemberPortal() {
             <h1 className="text-4xl font-bold mb-2 uppercase text-blue-400">Iron Keep Logs</h1>
             <h2 className="text-xl text-slate-400">Athlete: <span className="text-white font-bold">{loginName}</span></h2>
           </div>
-          <button onClick={() => setIsAuthenticated(false)} className="text-slate-500 hover:text-red-400 transition-colors text-sm uppercase tracking-widest font-bold">Sign Out</button>
+          <button onClick={() => { setIsAuthenticated(false); setLoginName(""); }} className="text-slate-500 hover:text-red-400 transition-colors text-sm uppercase tracking-widest font-bold">Sign Out</button>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
