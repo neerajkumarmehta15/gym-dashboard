@@ -445,10 +445,10 @@ export default function MasterSequence() {
         <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p><h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3></div></div>
       </div>
 
-      {/* Analytics & Live Activity Grid */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 relative z-10 font-sans">
+      {/* Analytics Grid */}
+      <div className="max-w-6xl mx-auto mb-8 relative z-10 font-sans">
         {/* Weekly Attendance Chart */}
-        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
+        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
           <div>
             <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
               <Activity className="w-5 h-5 text-brand-volt" /> Check-In Trends (Last 7 Days)
@@ -475,34 +475,6 @@ export default function MasterSequence() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-gray-500 font-mono">No Check-in Data Found</div>
-            )}
-          </div>
-        </div>
-
-        {/* Live Check-In Stream */}
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
-          <div>
-            <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-5 h-5 text-brand-orange animate-pulse" /> Live Activity stream
-            </h3>
-            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wide">Real-time gate gate pass scans</p>
-          </div>
-          <div className="space-y-3 mt-4 flex-1 flex flex-col justify-center">
-            {recentCheckins.length > 0 ? (
-              recentCheckins.map(feed => (
-                <div key={feed.id} className="flex justify-between items-center bg-brand-dark/40 border border-gray-900/60 p-3 rounded-xl hover:border-gray-800 transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-volt animate-ping"></span>
-                    <p className="text-xs font-bold text-gray-200">{feed.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-brand-orange font-mono font-bold">{feed.time}</p>
-                    <p className="text-[8px] text-gray-500 font-mono">{feed.date}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-xs text-gray-500 font-mono">Waiting for check-ins...</div>
             )}
           </div>
         </div>
