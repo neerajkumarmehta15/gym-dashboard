@@ -743,40 +743,7 @@ export default function MasterSequence() {
         <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p><h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3></div></div>
       </div>
 
-      {/* Analytics Grid */}
-      <div className="max-w-6xl mx-auto mb-8 relative z-10 font-sans">
-        {/* Weekly Attendance Chart */}
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
-          <div>
-            <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-5 h-5 text-brand-volt" /> Check-In Trends (Last 7 Days)
-            </h3>
-            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wide">Daily athlete gate check-in statistics</p>
-          </div>
-          <div className="h-[200px] w-full mt-4">
-            {attendanceChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={attendanceChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    labelStyle={{ color: '#94a3b8', fontSize: '10px', fontFamily: 'monospace' }}
-                    itemStyle={{ color: '#d4ff00', fontSize: '12px', fontWeight: 'bold' }}
-                  />
-                  <Bar dataKey="count" fill="#d4ff00" radius={[6, 6, 0, 0]}>
-                    {attendanceChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 6 ? '#ff6b00' : '#d4ff00'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-gray-500 font-mono">No Check-in Data Found</div>
-            )}
-          </div>
-        </div>
-      </div>
+
 
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 mb-6 relative z-10 font-sans">
         <div className="relative flex-1">
@@ -869,7 +836,6 @@ export default function MasterSequence() {
                 <div className="flex items-center gap-3">
                   <button onClick={() => openAthleteDossier(member)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-purple/10 hover:text-brand-purple hover:border-brand-purple/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><Activity className="w-3 h-3" /> Logs</button>
                   
-                  <button onClick={() => handleCheckIn(member.id, member.full_name)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-cyan/10 hover:text-brand-cyan hover:border-brand-cyan/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><MapPin className="w-3 h-3" /> Check In</button>
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${member.status === 'active' ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>{member.status.toUpperCase()}</span>
                   
                   {/* Options Menu Dropdown */}
