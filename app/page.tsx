@@ -78,8 +78,7 @@ export default function MasterSequence() {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      setAuthStatus('guest'); 
-      setIsSyncing(false);
+      router.push('/login');
       return; 
     }
     
@@ -272,36 +271,7 @@ export default function MasterSequence() {
     );
   }
 
-  // ==========================================
-  // RENDER 2: GUEST GATEWAY
-  // ==========================================
-  if (authStatus === 'guest') {
-    return (
-      <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
-        {/* Glow ambient background elements */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-orange/10 blur-[100px] rounded-full pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-brand-volt/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-        <div className="text-center space-y-4 mb-16 z-10">
-          <h1 className="text-5xl md:text-7xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt drop-shadow-lg font-sans">
-            GymNation
-          </h1>
-          <p className="text-gray-400 text-sm uppercase tracking-widest font-mono">Central Command Terminal</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl z-10">
-          <Link href="/login" className="group relative glass-panel p-10 rounded-2xl hover:border-brand-orange/40 hover:shadow-brand-orange/15 transition-all text-center flex flex-col items-center justify-center gap-6 overflow-hidden">
-            <div className="w-20 h-20 bg-brand-orange/20 border border-brand-orange/30 text-brand-orange rounded-full flex items-center justify-center text-4xl z-10 group-hover:scale-110 transition-transform">🛡️</div>
-            <div className="z-10"><h2 className="text-3xl font-bold text-gray-100 mb-2">Owner Matrix</h2><p className="text-gray-400 text-xs font-mono uppercase">Manage Roster & Revenue</p></div>
-          </Link>
-          <Link href="/athlete" className="group relative glass-panel p-10 rounded-2xl hover:border-brand-volt/40 hover:shadow-brand-volt/15 transition-all text-center flex flex-col items-center justify-center gap-6 overflow-hidden">
-            <div className="w-20 h-20 bg-brand-volt/10 border border-brand-volt/20 text-brand-volt rounded-full flex items-center justify-center text-4xl z-10 group-hover:scale-110 transition-transform font-bold glow-btn-volt">🏋️</div>
-            <div className="z-10"><h2 className="text-3xl font-bold text-gray-100 mb-2">Athlete Login</h2><p className="text-gray-400 text-xs font-mono uppercase">Log Workouts & Macros</p></div>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   // ==========================================
   // RENDER 3: CRM DASHBOARD

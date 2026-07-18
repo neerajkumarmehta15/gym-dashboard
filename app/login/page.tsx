@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -89,6 +90,12 @@ export default function LoginScreen() {
             </button>
           </div>
         </form>
+
+        <div className="text-center mt-6 pt-6 border-t border-slate-800/80">
+          <Link href="/athlete" className="text-xs text-brand-volt font-bold uppercase tracking-widest hover:underline transition-all font-mono">
+            Are you an Athlete? Portal Access Here
+          </Link>
+        </div>
       </div>
     </div>
   );
