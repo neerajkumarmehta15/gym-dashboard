@@ -587,25 +587,23 @@ export default function MasterSequence() {
                 <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
                   <div className="flex items-center gap-4">
                     {/* Avatar Container */}
-                    {resolvedPhoto ? (
-                      <img src={resolvedPhoto} alt={member.full_name} className="w-12 h-12 rounded-full border border-slate-800 object-cover group-hover:scale-105 transition-transform" />
-                    ) : resolvedGender === 'Female' ? (
-                      <div className="w-12 h-12 rounded-full bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
-                        <svg className="w-7 h-7 text-brand-orange animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <div className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''}`}>
+                      {resolvedPhoto ? (
+                        <img src={resolvedPhoto} alt={member.full_name} />
+                      ) : resolvedGender === 'Female' ? (
+                        <svg className="w-8 h-8 text-brand-orange/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
                           <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
                           <path d="M12 1v3M10 2h4" strokeWidth="1" />
                         </svg>
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-brand-volt/10 border border-brand-volt/20 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
-                        <svg className="w-7 h-7 text-brand-volt animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      ) : (
+                        <svg className="w-8 h-8 text-brand-volt/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
                           <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
                           <path d="M12 4V2" strokeWidth="2" />
                         </svg>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
