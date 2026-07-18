@@ -325,7 +325,7 @@ export default function MasterSequence() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt">GYMNATION HQ</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-orange to-brand-volt">GymNation</h1>
             <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Live Database Matrix Engine</p>
           </div>
         </div>

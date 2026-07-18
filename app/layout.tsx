@@ -14,7 +14,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "GymNation HQ | CRM & Athlete Portal",
+  title: "GymNation | CRM & Athlete Portal",
   description: "Advanced Gym Management & Athlete Progress Tracker",
   manifest: "/manifest.json",
   appleWebApp: {

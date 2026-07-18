@@ -1,5 +1,5 @@
 {
-  "name": "GymNation HQ Gym & Athlete Portal",
+  "name": "GymNation Gym & Athlete Portal",
   "short_name": "GymNation",
   "description": "Premium gym tracker, progress logs, and check-in scanner.",
   "start_url": "/athlete/dashboard",

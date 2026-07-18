@@ -60,7 +60,7 @@ export default function LoginScreen() {
         </div>
         
         <h2 className="text-3xl font-black text-center text-slate-100 mb-2 tracking-tight font-sans">
-          GYMNATION HQ
+          GymNation
         </h2>
         <p className="text-center text-gray-400 text-sm mb-8 font-sans">
           Restricted Access. Authenticate to enter the command center.
