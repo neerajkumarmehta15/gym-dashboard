@@ -182,6 +182,7 @@ export default function MasterSequence() {
         };
       });
       setMembers(membersWithSubs);
+      triggerAutomaticExpiryAlerts(membersWithSubs);
     }
 
     const { data: planData } = await supabase.from('membership_plans').select('*').order('price', { ascending: true });
@@ -452,6 +453,50 @@ export default function MasterSequence() {
   function triggerExpiryAlert(member: MemberData) {
     setAlertMember(member);
     setIsAlertModalOpen(true);
+  }
+
+  async function triggerAutomaticExpiryAlerts(membersList: MemberData[]) {
+    if (typeof window === 'undefined') return;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sentReminders = JSON.parse(localStorage.getItem('gymnation_sent_reminders') || '{}');
+    let hasSentAny = false;
+
+    // Filter members expiring in 7 days or fewer (and not expired)
+    const expiringSoon = membersList.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 7);
+
+    for (const member of expiringSoon) {
+      const lastSentDate = sentReminders[member.id];
+      
+      // If we haven't sent an alert to this member today, send it automatically!
+      if (lastSentDate !== todayStr) {
+        const message = `Hi ${member.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${member.days_left} days on ${member.end_date}. Please renew soon to continue your training without interruptions! Thank you.`;
+        
+        try {
+          const res = await fetch('/api/send-sms', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              to: member.phone_number,
+              message: message
+            })
+          });
+          
+          if (res.ok) {
+            sentReminders[member.id] = todayStr;
+            hasSentAny = true;
+          }
+        } catch (e) {
+          console.error(`Failed to send automated SMS to ${member.full_name}:`, e);
+        }
+      }
+    }
+
+    if (hasSentAny) {
+      localStorage.setItem('gymnation_sent_reminders', JSON.stringify(sentReminders));
+    }
   }
 
   async function handleAddSubscription(e: React.FormEvent) {
