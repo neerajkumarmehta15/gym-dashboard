@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, ArrowRight } from 'lucide-react';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -31,45 +31,49 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Glow ambient background elements */}
+      <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-brand-volt/10 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
         <div className="flex justify-center mb-6">
-          <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
+          <div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl border border-brand-orange/20">
             <ShieldAlert className="w-8 h-8" />
           </div>
         </div>
         
-        <h2 className="text-2xl font-black text-center text-slate-100 mb-2 tracking-tight">
+        <h2 className="text-3xl font-black text-center text-slate-100 mb-2 tracking-tight font-sans">
           IRON KEEP HQ
         </h2>
-        <p className="text-center text-slate-400 text-sm mb-8">
-          Restricted Access. Authenticate to enter the matrix.
+        <p className="text-center text-gray-400 text-sm mb-8 font-sans">
+          Restricted Access. Authenticate to enter the command center.
         </p>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-lg mb-6 text-center">
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl mb-6 text-center font-mono">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Admin Email</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Admin Email</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-cyan-500/50 transition-all"
+              className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/50 transition-colors font-mono"
               required
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Passcode</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Passcode</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-cyan-500/50 transition-all"
+              className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/50 transition-colors font-mono"
               required
             />
           </div>
@@ -78,9 +82,10 @@ export default function LoginScreen() {
             <button 
               type="submit"
               disabled={isAuthenticating}
-              className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition-all disabled:opacity-50"
+              className="w-full bg-brand-orange hover:bg-brand-orange/95 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 tracking-widest font-sans disabled:opacity-50"
             >
-              {isAuthenticating ? 'Verifying Credentials...' : 'Initialize Session'}
+              {isAuthenticating ? 'VERIFYING CREDENTIALS...' : 'INITIALIZE SESSION'}
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </form>
