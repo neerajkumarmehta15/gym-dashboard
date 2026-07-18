@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from "@supabase/supabase-js";
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft, MoreVertical, Edit3, PlusCircle } from 'lucide-react';
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -74,6 +74,24 @@ export default function MasterSequence() {
   const [gender, setGender] = useState('Male');
   const [photoBase64, setPhotoBase64] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // --- EDIT & MANAGE MEMBER STATE ---
+  const [activeMenuMemberId, setActiveMenuMemberId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editMemberId, setEditMemberId] = useState('');
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editGender, setEditGender] = useState('Male');
+  const [editPhotoBase64, setEditPhotoBase64] = useState('');
+
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [subMemberId, setSubMemberId] = useState('');
+  const [subMemberName, setSubMemberName] = useState('');
+  const [subPlanId, setSubPlanId] = useState('');
+  const [subJoiningDate, setSubJoiningDate] = useState(new Date().toISOString().split('T')[0]);
+  const [subDurationMonths, setSubDurationMonths] = useState(1);
+  const [subPaymentMode, setSubPaymentMode] = useState('Cash');
 
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
@@ -305,6 +323,155 @@ export default function MasterSequence() {
   async function deleteMember(id: string, name: string) {
     if (!confirm(`Permanently delete ${name}?`)) return;
     await supabase.from('members').delete().eq('id', id);
+    initializeEngine();
+  }
+
+  // --- Edit & Manage Handlers ---
+  function openEditModal(member: MemberData) {
+    setEditMemberId(member.id);
+    setEditFullName(member.full_name);
+    setEditPhoneNumber(member.phone_number);
+    setEditEmail(member.email || '');
+    
+    let g = member.gender || 'Male';
+    if (typeof window !== 'undefined' && !member.gender) {
+      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+      g = localGenders[member.id] || 'Male';
+    }
+    setEditGender(g);
+
+    let p = member.photo || '';
+    if (typeof window !== 'undefined' && !member.photo) {
+      const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+      p = localPhotos[member.id] || '';
+    }
+    setEditPhotoBase64(p);
+
+    setIsEditModalOpen(true);
+  }
+
+  async function handleEditMember(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editFullName || !editPhoneNumber) return;
+    
+    setIsSubmitting(true);
+    let updateError = null;
+    
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({ 
+          full_name: editFullName, 
+          phone_number: editPhoneNumber, 
+          email: editEmail || null,
+          gender: editGender,
+          photo: editPhotoBase64 || null
+        })
+        .eq('id', editMemberId);
+      updateError = error;
+    } catch (err) {}
+
+    if (updateError) {
+      try {
+        const { error } = await supabase
+          .from('members')
+          .update({ 
+            full_name: editFullName, 
+            phone_number: editPhoneNumber, 
+            email: editEmail || null,
+            gender: editGender
+          })
+          .eq('id', editMemberId);
+        updateError = error;
+      } catch (err) {}
+    }
+
+    if (updateError) {
+      try {
+        const { error } = await supabase
+          .from('members')
+          .update({ 
+            full_name: editFullName, 
+            phone_number: editPhoneNumber, 
+            email: editEmail || null
+          })
+          .eq('id', editMemberId);
+        updateError = error;
+      } catch (err) {}
+    }
+
+    if (updateError) {
+      const { error } = await supabase
+        .from('members')
+        .update({ 
+          full_name: editFullName, 
+          phone_number: editPhoneNumber
+        })
+        .eq('id', editMemberId);
+      updateError = error;
+    }
+
+    if (updateError) {
+      alert(`Error: ${updateError.message}`);
+      return setIsSubmitting(false);
+    }
+
+    if (typeof window !== 'undefined') {
+      if (editPhotoBase64) {
+        const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+        localPhotos[editMemberId] = editPhotoBase64;
+        localStorage.setItem('gymnation_member_photos', JSON.stringify(localPhotos));
+      }
+      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+      localGenders[editMemberId] = editGender;
+      localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
+    }
+
+    setIsSubmitting(false);
+    setIsEditModalOpen(false);
+    initializeEngine();
+  }
+
+  function openSubModal(member: MemberData) {
+    setSubMemberId(member.id);
+    setSubMemberName(member.full_name);
+    if (plans.length > 0) {
+      setSubPlanId(plans[0].id.toString());
+      setSubDurationMonths(plans[0].duration_months);
+    }
+    setSubJoiningDate(new Date().toISOString().split('T')[0]);
+    setIsSubModalOpen(true);
+  }
+
+  async function handleAddSubscription(e: React.FormEvent) {
+    e.preventDefault();
+    if (!subMemberId || !subPlanId) return;
+
+    setIsSubmitting(true);
+    const selectedPlan = plans.find(p => p.id === Number(subPlanId));
+    if (!selectedPlan) return setIsSubmitting(false);
+
+    const startDate = new Date(subJoiningDate);
+    const endDate = new Date(subJoiningDate);
+    endDate.setMonth(startDate.getMonth() + Number(subDurationMonths));
+
+    const { error } = await supabase.from('subscriptions').insert([{
+      member_id: subMemberId, 
+      plan_id: selectedPlan.id,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      amount_paid: selectedPlan.price, 
+      payment_mode: subPaymentMode
+    }]);
+
+    if (error) {
+      alert(`Error logging subscription: ${error.message}`);
+    } else {
+      alert(`Subscription logged successfully for ${subMemberName}!`);
+    }
+
+    setIsSubmitting(false);
+    setIsSubModalOpen(false);
     initializeEngine();
   }
 
@@ -629,14 +796,63 @@ export default function MasterSequence() {
                       </div>
                     </div>
                   </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <button onClick={() => openAthleteDossier(member)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-purple/10 hover:text-brand-purple hover:border-brand-purple/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><Activity className="w-3 h-3" /> Logs</button>
                   
                   <button onClick={() => handleCheckIn(member.id, member.full_name)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-cyan/10 hover:text-brand-cyan hover:border-brand-cyan/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><MapPin className="w-3 h-3" /> Check In</button>
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${member.status === 'active' ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>{member.status.toUpperCase()}</span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => toggleMemberStatus(member.id, member.status)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800"><Power className="w-4 h-4" /></button>
-                    <button onClick={() => deleteMember(member.id, member.full_name)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"><Trash2 className="w-4 h-4" /></button>
+                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${member.status === 'active' ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>{member.status.toUpperCase()}</span>
+                  
+                  {/* Options Menu Dropdown */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setActiveMenuMemberId(activeMenuMemberId === member.id ? null : member.id)} 
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      title="Manage Athlete"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    
+                    {activeMenuMemberId === member.id && (
+                      <div className="absolute right-0 top-10 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 py-1.5 font-sans">
+                        <button 
+                          onClick={() => {
+                            setActiveMenuMemberId(null);
+                            openEditModal(member);
+                          }} 
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" /> Edit Profile
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setActiveMenuMemberId(null);
+                            openSubModal(member);
+                          }} 
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" /> Add Subscription
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setActiveMenuMemberId(null);
+                            toggleMemberStatus(member.id, member.status);
+                          }} 
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                        >
+                          <Power className="w-3.5 h-3.5" /> Toggle Status
+                        </button>
+                        <hr className="border-slate-800 my-1" />
+                        <button 
+                          onClick={() => {
+                            setActiveMenuMemberId(null);
+                            deleteMember(member.id, member.full_name);
+                          }} 
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 hover:text-rose-350 flex items-center gap-2"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete Member
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -708,6 +924,97 @@ export default function MasterSequence() {
               </div>
 
               <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-brand-orange to-brand-volt text-slate-950 font-extrabold py-3.5 rounded-xl text-sm transition-opacity hover:opacity-90 tracking-widest uppercase font-sans mt-2">{isSubmitting ? 'Syncing...' : 'Activate & Log Payment'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- EDIT PROFILE MODAL --- */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative font-sans">
+            <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-5 h-5" /></button>
+            <h3 className="text-xl font-bold text-slate-100 mb-5">Edit Profile</h3>
+            <form onSubmit={handleEditMember} className="space-y-4">
+              <div><label className="block text-xs text-slate-400 mb-1.5">Full Name</label><input type="text" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1.5">Email Address <span className="text-[10px] text-gray-500 font-mono">(Optional)</span></label><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="athlete@example.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1.5">Phone Number</label><input type="tel" value={editPhoneNumber} onChange={(e) => setEditPhoneNumber(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Gender</label>
+                  <select 
+                    value={editGender} 
+                    onChange={(e) => setEditGender(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none"
+                  >
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-slate-400 mb-1.5">Update Photo <span className="text-[10px] text-gray-500 font-mono">(Optional)</span></label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setEditPhotoBase64(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-400 focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-brand-orange to-brand-volt text-slate-950 font-extrabold py-3.5 rounded-xl text-sm transition-opacity hover:opacity-90 tracking-widest uppercase mt-2">{isSubmitting ? 'Syncing...' : 'Save Profile Changes'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD SUBSCRIPTION MODAL --- */}
+      {isSubModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative font-sans">
+            <button onClick={() => setIsSubModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-5 h-5" /></button>
+            <h3 className="text-xl font-bold text-slate-100 mb-2">New Subscription</h3>
+            <p className="text-xs text-slate-400 mb-5">Assign or renew membership plan for <span className="text-brand-volt font-bold">{subMemberName}</span></p>
+            
+            <form onSubmit={handleAddSubscription} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Package</label>
+                  <select 
+                    value={subPlanId} 
+                    onChange={(e) => {
+                      const planId = e.target.value;
+                      setSubPlanId(planId);
+                      const plan = plans.find(p => p.id === Number(planId));
+                      if (plan) {
+                        setSubDurationMonths(plan.duration_months);
+                      }
+                    }} 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none"
+                  >
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.plan_name} (₹{p.price})</option>)}
+                  </select>
+                </div>
+                <div><label className="block text-xs text-slate-400 mb-1.5">Payment Mode</label><select value={subPaymentMode} onChange={(e) => setSubPaymentMode(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none"><option>Cash</option><option>UPI</option><option>Card</option></select></div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2"><label className="block text-xs text-slate-400 mb-1.5">Joining/Start Date</label><input type="date" value={subJoiningDate} onChange={(e) => setSubJoiningDate(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none font-mono" /></div>
+                <div><label className="block text-xs text-slate-400 mb-1.5">Duration</label><input type="number" min={1} max={36} value={subDurationMonths} onChange={(e) => setSubDurationMonths(Number(e.target.value))} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none font-mono" /></div>
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-brand-orange to-brand-volt text-slate-950 font-extrabold py-3.5 rounded-xl text-sm transition-opacity hover:opacity-90 tracking-widest uppercase mt-2">{isSubmitting ? 'Syncing...' : 'Activate & Log payment'}</button>
             </form>
           </div>
         </div>
