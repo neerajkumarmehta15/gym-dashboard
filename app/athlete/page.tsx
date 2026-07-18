@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
-import { Mail, ArrowRight, Lock, KeyRound, UserPlus } from 'lucide-react';
+import { Mail, ArrowRight, Lock, KeyRound, UserPlus, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AthleteLogin() {
   const [email, setEmail] = useState('');
@@ -118,6 +119,11 @@ export default function AthleteLogin() {
 
   return (
     <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Back to Owner Portal link */}
+      <Link href="/login" className="absolute top-6 left-6 flex items-center gap-2 text-xs uppercase tracking-widest font-mono font-bold text-gray-500 hover:text-brand-volt transition-all z-20">
+        <ArrowLeft className="w-4 h-4" /> Owner Portal
+      </Link>
+
       {/* Glow ambient background elements */}
       <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-brand-volt/10 blur-[120px] rounded-full pointer-events-none"></div>

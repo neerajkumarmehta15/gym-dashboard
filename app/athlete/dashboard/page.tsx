@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, Clock, QrCode, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, Clock, QrCode, ClipboardList, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -342,10 +342,18 @@ export default function AthleteDashboard() {
         
         {/* Header */}
         <header className="glass-panel p-5 md:p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-volt to-brand-cyan">
-              GYMNATION LOGS
-            </h1>
+          <div className="flex items-center gap-3.5">
+            <button 
+              onClick={() => window.history.back()} 
+              className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/40 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-volt to-brand-cyan">
+                GYMNATION LOGS
+              </h1>
             <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
               Athlete Portal: <span className="text-white font-extrabold">{profile.full_name}</span> 
               <span className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-bold uppercase ${profile.status === 'active' ? 'bg-brand-volt/20 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/20 text-rose-400 border border-rose-500/20'}`}>
@@ -353,7 +361,8 @@ export default function AthleteDashboard() {
               </span>
             </p>
           </div>
-          <div className="flex w-full sm:w-auto gap-3">
+        </div>
+        <div className="flex w-full sm:w-auto gap-3">
             <button 
               onClick={() => setIsQrOpen(true)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/30 hover:text-brand-volt px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
