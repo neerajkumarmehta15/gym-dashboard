@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, Clock, QrCode, ClipboardList, CheckCircle } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, Clock, QrCode, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -46,6 +46,10 @@ export default function AthleteDashboard() {
   const [metricsStatus, setMetricsStatus] = useState('');
 
   const [nutritionStatus, setNutritionStatus] = useState('');
+
+  // Password Setup state
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState('');
 
   // Dashboard logs
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
@@ -242,6 +246,23 @@ export default function AthleteDashboard() {
       setTimeout(() => setMetricsStatus(''), 3000);
     } else {
       setMetricsStatus(`Error: ${error.message}`);
+    }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setPasswordStatus('Password must be at least 6 characters.');
+      return;
+    }
+    setPasswordStatus('Saving password...');
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setPasswordStatus(`Error: ${error.message}`);
+    } else {
+      setPasswordStatus('Password set successfully! ✅');
+      setNewPassword('');
+      setTimeout(() => setPasswordStatus(''), 3000);
     }
   }
 
@@ -539,6 +560,36 @@ export default function AthleteDashboard() {
                 </button>
                 {metricsStatus && (
                   <p className="text-center text-xs text-brand-purple font-mono font-bold mt-2">{metricsStatus}</p>
+                )}
+              </form>
+            </div>
+
+            {/* Account Security Module */}
+            <div className="glass-panel p-6 rounded-2xl space-y-5">
+              <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
+                <Sparkles className="w-5 h-5 animate-pulse text-brand-orange" /> ACCOUNT PASSWORD
+              </h3>
+              <p className="text-xs text-gray-450 leading-relaxed font-sans">
+                Set or update your password to log in directly next time without waiting for a magic link email.
+              </p>
+              <form onSubmit={handleSetPassword} className="space-y-3 pt-2">
+                <input 
+                  type="password" 
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Set New Password" 
+                  required
+                  minLength={6}
+                  className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-orange/50 font-mono" 
+                />
+                <button 
+                  type="submit" 
+                  className="w-full bg-brand-orange/20 hover:bg-brand-orange/30 border border-brand-orange/30 hover:border-brand-orange/50 text-brand-orange font-bold py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all"
+                >
+                  Save Password
+                </button>
+                {passwordStatus && (
+                  <p className="text-center text-xs text-brand-orange font-mono font-bold mt-2">{passwordStatus}</p>
                 )}
               </form>
             </div>
