@@ -19,6 +19,9 @@ interface MemberData {
   joined_date: string;
   status: string;
   email?: string;
+  start_date?: string;
+  end_date?: string | null;
+  days_left?: number;
 }
 
 interface PlanData {
@@ -64,6 +67,8 @@ export default function MasterSequence() {
   const [paymentMode, setPaymentMode] = useState('Cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState('');
+  const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
+  const [durationMonths, setDurationMonths] = useState(1);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- TRACKING & ASSIGNMENT STATE ---
@@ -124,12 +129,41 @@ export default function MasterSequence() {
     setAuthStatus('owner');
 
     const { data: memberData } = await supabase.from('members').select('*').order('joined_date', { ascending: false });
-    if (memberData) setMembers(memberData);
+    const { data: subDetails } = await supabase.from('subscriptions').select('*');
+
+    if (memberData) {
+      const membersWithSubs = memberData.map((m: any) => {
+        const mSubs = subDetails ? subDetails.filter((s: any) => s.member_id === m.id) : [];
+        let latestSub = null;
+        if (mSubs.length > 0) {
+          latestSub = mSubs.reduce((prev: any, current: any) => {
+            return (new Date(prev.end_date) > new Date(current.end_date)) ? prev : current;
+          });
+        }
+        
+        let daysLeft = 0;
+        if (latestSub) {
+          const diffTime = new Date(latestSub.end_date).getTime() - new Date().getTime();
+          daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        return {
+          ...m,
+          start_date: latestSub ? latestSub.start_date : m.joined_date,
+          end_date: latestSub ? latestSub.end_date : null,
+          days_left: daysLeft > 0 ? daysLeft : 0
+        };
+      });
+      setMembers(membersWithSubs);
+    }
 
     const { data: planData } = await supabase.from('membership_plans').select('*').order('price', { ascending: true });
     if (planData) {
       setPlans(planData);
-      if (planData.length > 0 && !selectedPlanId) setSelectedPlanId(planData[0].id.toString());
+      if (planData.length > 0 && !selectedPlanId) {
+        setSelectedPlanId(planData[0].id.toString());
+        setDurationMonths(planData[0].duration_months);
+      }
     }
 
     const { data: subData } = await supabase.from('subscriptions').select('amount_paid');
@@ -288,9 +322,9 @@ export default function MasterSequence() {
       return setIsSubmitting(false);
     }
 
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(startDate.getMonth() + selectedPlan.duration_months);
+    const startDate = new Date(joiningDate);
+    const endDate = new Date(joiningDate);
+    endDate.setMonth(startDate.getMonth() + Number(durationMonths));
 
     await supabase.from('subscriptions').insert([{
       member_id: newMember.id, plan_id: selectedPlan.id,
@@ -300,7 +334,7 @@ export default function MasterSequence() {
     }]);
 
     setIsSubmitting(false);
-    setFullName(''); setPhoneNumber(''); setEmail(''); setIsModalOpen(false);
+    setFullName(''); setPhoneNumber(''); setEmail(''); setJoiningDate(new Date().toISOString().split('T')[0]); setDurationMonths(1); setIsModalOpen(false);
     initializeEngine();
   }
 
@@ -491,9 +525,27 @@ export default function MasterSequence() {
           <div className="space-y-3">
             {filteredMembers.map((member) => (
               <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
-                <div>
-                  <h4 className="font-bold text-slate-200">{member.full_name}</h4>
-                  <p className="text-xs text-slate-400 mt-0.5 font-mono">{member.phone_number} • Joined: {member.joined_date}</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-200">{member.full_name}</h4>
+                    {member.end_date && (
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono uppercase ${
+                        (member.days_left || 0) > 15 
+                          ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' 
+                          : (member.days_left || 0) > 0 
+                            ? 'bg-brand-orange/10 text-brand-orange border border-brand-orange/20' 
+                            : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
+                      }`}>
+                        {(member.days_left || 0) > 0 ? `${member.days_left} Days Left` : 'Expired'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-gray-400 font-mono space-y-0.5">
+                    <p>{member.phone_number} • {member.email || 'No Email'}</p>
+                    <p className="text-[10px] text-gray-500">
+                      Active: <span className="text-gray-300 font-bold">{member.start_date}</span> ➔ Expiry: <span className="text-gray-300 font-bold">{member.end_date || 'N/A'}</span>
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <button onClick={() => openAthleteDossier(member)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-purple/10 hover:text-brand-purple hover:border-brand-purple/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><Activity className="w-3 h-3" /> Logs</button>
@@ -518,14 +570,37 @@ export default function MasterSequence() {
             <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-5 h-5" /></button>
             <h3 className="text-xl font-bold text-slate-100 mb-5">Register New Member</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
-              <div><label className="block text-xs text-slate-400 mb-1.5">Full Name</label><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100" /></div>
-              <div><label className="block text-xs text-slate-400 mb-1.5">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="athlete@example.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100" /></div>
-              <div><label className="block text-xs text-slate-400 mb-1.5">Phone Number</label><input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1.5">Full Name</label><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1.5">Email Address <span className="text-[10px] text-gray-500 font-mono">(Optional)</span></label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="athlete@example.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1.5">Phone Number</label><input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40" /></div>
+              
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs text-slate-400 mb-1.5">Package</label><select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100">{plans.map(p => <option key={p.id} value={p.id}>{p.plan_name} (₹{p.price})</option>)}</select></div>
-                <div><label className="block text-xs text-slate-400 mb-1.5">Payment</label><select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100"><option>Cash</option><option>UPI</option><option>Card</option></select></div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Package</label>
+                  <select 
+                    value={selectedPlanId} 
+                    onChange={(e) => {
+                      const planId = e.target.value;
+                      setSelectedPlanId(planId);
+                      const plan = plans.find(p => p.id === Number(planId));
+                      if (plan) {
+                        setDurationMonths(plan.duration_months);
+                      }
+                    }} 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40"
+                  >
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.plan_name} (₹{p.price})</option>)}
+                  </select>
+                </div>
+                <div><label className="block text-xs text-slate-400 mb-1.5">Payment Mode</label><select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-orange/40"><option>Cash</option><option>UPI</option><option>Card</option></select></div>
               </div>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl text-sm hover:opacity-90">{isSubmitting ? 'Syncing...' : 'Activate & Log Payment'}</button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs text-slate-400 mb-1.5">Joining Date</label><input type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
+                <div><label className="block text-xs text-slate-400 mb-1.5">Duration (Months)</label><input type="number" min={1} max={36} value={durationMonths} onChange={(e) => setDurationMonths(Number(e.target.value))} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-orange/40 font-mono" /></div>
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-brand-orange to-brand-volt text-slate-950 font-extrabold py-3.5 rounded-xl text-sm transition-opacity hover:opacity-90 tracking-widest uppercase font-sans mt-2">{isSubmitting ? 'Syncing...' : 'Activate & Log Payment'}</button>
             </form>
           </div>
         </div>
