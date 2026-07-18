@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from "@supabase/supabase-js";
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft } from 'lucide-react';
 import Link from "next/link";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // Initialize Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -49,6 +50,11 @@ export default function MasterSequence() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // --- ANALYTICS STATE ---
+  const [attendanceChartData, setAttendanceChartData] = useState<any[]>([]);
+  const [packageChartData, setPackageChartData] = useState<any[]>([]);
+  const [recentCheckins, setRecentCheckins] = useState<any[]>([]);
 
   // --- MEMBER MODAL STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -130,6 +136,67 @@ export default function MasterSequence() {
     if (subData) {
       const revenue = subData.reduce((sum, sub) => sum + Number(sub.amount_paid), 0);
       setTotalRevenue(revenue);
+    }
+
+    // Fetch and calculate attendance chart data (last 7 days)
+    const { data: checkins } = await supabase.from('attendance').select('created_at');
+    if (checkins) {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+          dateStr: d.toISOString().split('T')[0],
+          label: days[d.getDay()],
+          count: 0
+        };
+      });
+
+      checkins.forEach((log: any) => {
+        const dateStr = new Date(log.created_at).toISOString().split('T')[0];
+        const match = last7Days.find(d => d.dateStr === dateStr);
+        if (match) {
+          match.count++;
+        }
+      });
+      setAttendanceChartData(last7Days);
+    }
+
+    // Calculate package distribution chart data
+    if (memberData) {
+      const packageCounts: { [key: string]: number } = {};
+      memberData.forEach((m: any) => {
+        const pkg = m.package_name || 'Standard Pass';
+        packageCounts[pkg] = (packageCounts[pkg] || 0) + 1;
+      });
+      
+      const COLORS = ['#ff6b00', '#d4ff00', '#00f0ff', '#a855f7'];
+      const packageData = Object.keys(packageCounts).map((key, idx) => ({
+        name: key,
+        value: packageCounts[key],
+        color: COLORS[idx % COLORS.length]
+      }));
+      setPackageChartData(packageData);
+    }
+
+    // Load recent check-in feed
+    const { data: latestCheckins } = await supabase
+      .from('attendance')
+      .select('id, created_at, member_id')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (latestCheckins && memberData) {
+      const feed = latestCheckins.map((c: any) => {
+        const member = memberData.find((m: any) => m.id === c.member_id);
+        return {
+          id: c.id,
+          name: member ? member.full_name : 'Guest Athlete',
+          time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(c.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+        };
+      });
+      setRecentCheckins(feed);
     }
     
     setIsSyncing(false);
@@ -342,6 +409,69 @@ export default function MasterSequence() {
         <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl"><Clock /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expiring Soon</p><h3 className="text-2xl font-black">0</h3></div></div>
         <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-volt/10 text-brand-volt rounded-xl"><CheckCircle /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Active</p><h3 className="text-2xl font-black">{activeMembers.length}</h3></div></div>
         <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p><h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3></div></div>
+      </div>
+
+      {/* Analytics & Live Activity Grid */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 relative z-10 font-sans">
+        {/* Weekly Attendance Chart */}
+        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
+          <div>
+            <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+              <Activity className="w-5 h-5 text-brand-volt" /> Check-In Trends (Last 7 Days)
+            </h3>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wide">Daily athlete gate check-in statistics</p>
+          </div>
+          <div className="h-[200px] w-full mt-4">
+            {attendanceChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={attendanceChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px' }}
+                    labelStyle={{ color: '#94a3b8', fontSize: '10px', fontFamily: 'monospace' }}
+                    itemStyle={{ color: '#d4ff00', fontSize: '12px', fontWeight: 'bold' }}
+                  />
+                  <Bar dataKey="count" fill="#d4ff00" radius={[6, 6, 0, 0]}>
+                    {attendanceChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 6 ? '#ff6b00' : '#d4ff00'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-gray-500 font-mono">No Check-in Data Found</div>
+            )}
+          </div>
+        </div>
+
+        {/* Live Check-In Stream */}
+        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[300px]">
+          <div>
+            <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+              <Clock className="w-5 h-5 text-brand-orange animate-pulse" /> Live Activity stream
+            </h3>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wide">Real-time gate gate pass scans</p>
+          </div>
+          <div className="space-y-3 mt-4 flex-1 flex flex-col justify-center">
+            {recentCheckins.length > 0 ? (
+              recentCheckins.map(feed => (
+                <div key={feed.id} className="flex justify-between items-center bg-brand-dark/40 border border-gray-900/60 p-3 rounded-xl hover:border-gray-800 transition-all">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-volt animate-ping"></span>
+                    <p className="text-xs font-bold text-gray-200">{feed.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-brand-orange font-mono font-bold">{feed.time}</p>
+                    <p className="text-[8px] text-gray-500 font-mono">{feed.date}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-xs text-gray-500 font-mono">Waiting for check-ins...</div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 mb-6 relative z-10 font-sans">
