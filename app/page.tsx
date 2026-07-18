@@ -92,6 +92,7 @@ export default function MasterSequence() {
   const [subJoiningDate, setSubJoiningDate] = useState(new Date().toISOString().split('T')[0]);
   const [subDurationMonths, setSubDurationMonths] = useState(1);
   const [subPaymentMode, setSubPaymentMode] = useState('Cash');
+  const [subMemberEndDate, setSubMemberEndDate] = useState<string | null>(null);
 
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
@@ -435,6 +436,7 @@ export default function MasterSequence() {
   function openSubModal(member: MemberData) {
     setSubMemberId(member.id);
     setSubMemberName(member.full_name);
+    setSubMemberEndDate(member.end_date || null);
     if (plans.length > 0) {
       setSubPlanId(plans[0].id.toString());
       setSubDurationMonths(plans[0].duration_months);
@@ -451,8 +453,14 @@ export default function MasterSequence() {
     const selectedPlan = plans.find(p => p.id === Number(subPlanId));
     if (!selectedPlan) return setIsSubmitting(false);
 
-    const startDate = new Date(subJoiningDate);
-    const endDate = new Date(subJoiningDate);
+    let startDateStr = subJoiningDate;
+    const today = new Date();
+    if (subMemberEndDate && new Date(subMemberEndDate) > today) {
+      startDateStr = subMemberEndDate;
+    }
+
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(startDateStr);
     endDate.setMonth(startDate.getMonth() + Number(subDurationMonths));
 
     const { error } = await supabase.from('subscriptions').insert([{
@@ -467,7 +475,7 @@ export default function MasterSequence() {
     if (error) {
       alert(`Error logging subscription: ${error.message}`);
     } else {
-      alert(`Subscription logged successfully for ${subMemberName}!`);
+      alert(`Subscription logged successfully starting from ${startDateStr} to ${endDate.toISOString().split('T')[0]}!`);
     }
 
     setIsSubmitting(false);
@@ -986,6 +994,12 @@ export default function MasterSequence() {
             <button onClick={() => setIsSubModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-5 h-5" /></button>
             <h3 className="text-xl font-bold text-slate-100 mb-2">New Subscription</h3>
             <p className="text-xs text-slate-400 mb-5">Assign or renew membership plan for <span className="text-brand-volt font-bold">{subMemberName}</span></p>
+            
+            {subMemberEndDate && new Date(subMemberEndDate) > new Date() && (
+              <div className="bg-brand-volt/10 border border-brand-volt/20 text-brand-volt p-3.5 rounded-xl text-[11px] mb-4 font-sans font-semibold">
+                ⚠️ Active subscription detected! This renewal will start in advance on <span className="font-bold">{subMemberEndDate}</span> right after their current plan expires.
+              </div>
+            )}
             
             <form onSubmit={handleAddSubscription} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
