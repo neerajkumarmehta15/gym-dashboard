@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
 import Link from "next/link";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface MemberData {
   id: string;
@@ -52,9 +51,7 @@ export default function MasterSequence() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   // --- ANALYTICS STATE ---
-  const [attendanceChartData, setAttendanceChartData] = useState<any[]>([]);
   const [packageChartData, setPackageChartData] = useState<any[]>([]);
-  const [recentCheckins, setRecentCheckins] = useState<any[]>([]);
 
   // --- MEMBER MODAL STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,7 +65,6 @@ export default function MasterSequence() {
   const [durationMonths, setDurationMonths] = useState(1);
   const [gender, setGender] = useState('Male');
   const [photoBase64, setPhotoBase64] = useState('');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- EDIT & MANAGE MEMBER STATE ---
   const [activeMenuMemberId, setActiveMenuMemberId] = useState<string | null>(null);
@@ -195,30 +191,6 @@ export default function MasterSequence() {
       setTotalRevenue(revenue);
     }
 
-    // Fetch and calculate attendance chart data (last 7 days)
-    const { data: checkins } = await supabase.from('attendance').select('check_in_time');
-    if (checkins) {
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        return {
-          dateStr: d.toISOString().split('T')[0],
-          label: days[d.getDay()],
-          count: 0
-        };
-      });
-
-      checkins.forEach((log: any) => {
-        const dateStr = new Date(log.check_in_time).toISOString().split('T')[0];
-        const match = last7Days.find(d => d.dateStr === dateStr);
-        if (match) {
-          match.count++;
-        }
-      });
-      setAttendanceChartData(last7Days);
-    }
-
     // Calculate package distribution chart data
     if (memberData) {
       const packageCounts: { [key: string]: number } = {};
@@ -235,26 +207,6 @@ export default function MasterSequence() {
       }));
       setPackageChartData(packageData);
     }
-
-    // Load recent check-in feed
-    const { data: latestCheckins } = await supabase
-      .from('attendance')
-      .select('id, check_in_time, member_id')
-      .order('check_in_time', { ascending: false })
-      .limit(5);
-
-    if (latestCheckins && memberData) {
-      const feed = latestCheckins.map((c: any) => {
-        const member = memberData.find((m: any) => m.id === c.member_id);
-        return {
-          id: c.id,
-          name: member ? member.full_name : 'Guest Athlete',
-          time: new Date(c.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          date: new Date(c.check_in_time).toLocaleDateString([], { month: 'short', day: 'numeric' })
-        };
-      });
-      setRecentCheckins(feed);
-    }
     
     setIsSyncing(false);
   }
@@ -262,58 +214,6 @@ export default function MasterSequence() {
   useEffect(() => { 
     initializeEngine(); 
   }, []);
-
-  useEffect(() => {
-    let scanner: any = null;
-
-    if (isScannerOpen) {
-      import('html5-qrcode').then((module) => {
-        const Html5QrcodeScanner = module.Html5QrcodeScanner;
-        scanner = new Html5QrcodeScanner(
-          "reader",
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          false
-        );
-
-        scanner.render(
-          async (decodedText: string) => {
-            scanner.clear().catch((e: any) => console.error(e));
-            setIsScannerOpen(false);
-            await handleCheckInById(decodedText);
-          },
-          (error: any) => {
-            // ignore scan errors
-          }
-        );
-      });
-    }
-
-    return () => {
-      if (scanner) {
-        scanner.clear().catch((err: any) => console.error("Failed to clear scanner", err));
-      }
-    };
-  }, [isScannerOpen]);
-
-  async function handleCheckInById(id: string) {
-    const { data: memberData } = await supabase.from('members').select('full_name').eq('id', id).maybeSingle();
-    if (memberData) {
-      const { error } = await supabase.from('attendance').insert([{ member_id: id }]);
-      if (error) alert(`Check-in failed: ${error.message}`);
-      else alert(`✅ Check-in success: Welcome back, ${memberData.full_name}!`);
-    } else {
-      alert("❌ Scan Error: Athlete registration ID not found in roster database.");
-    }
-  }
-
-  // ==========================================
-  // CRM HANDLERS
-  // ==========================================
-  async function handleCheckIn(id: string, name: string) {
-    const { error } = await supabase.from('attendance').insert([{ member_id: id }]);
-    if (error) alert(`Check-in failed: ${error.message}`);
-    else alert(`✅ ${name} checked in successfully!`);
-  }
 
   async function toggleMemberStatus(id: string, currentStatus: string) {
     const nextStatus = currentStatus === 'active' ? 'expired' : 'active';
@@ -1184,19 +1084,7 @@ export default function MasterSequence() {
         </div>
       )}
 
-      {/* --- QR CODE SCANNER MODAL --- */}
-      {isScannerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <button onClick={() => setIsScannerOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-5 h-5" /></button>
-            <h3 className="text-xl font-bold text-slate-100 mb-5 flex items-center gap-2"><QrCode className="text-cyan-400" /> Scan Athlete QR Pass</h3>
-            <div className="bg-black/40 rounded-xl overflow-hidden p-2 border border-slate-800">
-              <div id="reader" className="w-full"></div>
-            </div>
-            <p className="text-center text-xs text-slate-500 mt-4 uppercase tracking-widest">HQ Camera Access Required</p>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
