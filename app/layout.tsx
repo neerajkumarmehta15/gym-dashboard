@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import RefreshRedirect from "./RefreshRedirect";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -33,7 +34,10 @@ export default function RootLayout({
       lang="en"
       className={`${outfit.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">{children}</body>
+      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">
+        <RefreshRedirect />
+        {children}
+      </body>
     </html>
   );
 }

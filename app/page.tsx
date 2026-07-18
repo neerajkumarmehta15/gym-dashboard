@@ -81,6 +81,39 @@ export default function MasterSequence() {
       router.push('/login');
       return; 
     }
+
+    // Check if the logged-in user is an athlete
+    const userEmail = session.user.email || '';
+    const userFullName = session.user.user_metadata?.full_name || '';
+    let isAthlete = false;
+
+    try {
+      const { data: hasEmail } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', userEmail)
+        .maybeSingle();
+      
+      if (hasEmail) {
+        isAthlete = true;
+      } else if (userFullName) {
+        const { data: hasName } = await supabase
+          .from('members')
+          .select('id')
+          .eq('full_name', userFullName)
+          .maybeSingle();
+        if (hasName) {
+          isAthlete = true;
+        }
+      }
+    } catch (e) {
+      // Table check failed
+    }
+
+    if (isAthlete) {
+      router.push('/athlete/dashboard');
+      return;
+    }
     
     setAuthStatus('owner');
 
