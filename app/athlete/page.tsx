@@ -7,6 +7,7 @@ import { Mail, ArrowRight, Lock, KeyRound, UserPlus } from 'lucide-react';
 
 export default function AthleteLogin() {
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [loading, setLoading] = useState(false);
@@ -49,41 +50,37 @@ export default function AthleteLogin() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    // 1. Verify if email exists in gym roster ('members' table)
-    const { data: memberProfile, error: searchError } = await supabase
-      .from('members')
-      .select('id, full_name')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (searchError) {
-      setLoading(false);
-      setErrorMsg(`Roster check failed: ${searchError.message}`);
-      return;
-    }
-
-    if (!memberProfile) {
-      setLoading(false);
-      setErrorMsg('This email is not registered in our gym roster. Please contact the owner to register your email first.');
-      return;
-    }
-
-    // 2. Perform Supabase Sign Up
+    // 1. Perform Supabase Sign Up
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
 
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setErrorMsg(error.message);
+      return;
+    }
+
+    // 2. Automatically register the athlete in the 'members' table
+    const { error: insertError } = await supabase
+      .from('members')
+      .insert([{
+        full_name: fullName,
+        email: email,
+        status: 'active',
+        joined_date: new Date().toISOString().split('T')[0]
+      }]);
+
+    setLoading(false);
+    if (insertError) {
+      setErrorMsg(`Account created, but database profile setup failed: ${insertError.message}`);
     } else {
-      // If email confirmation is disabled, user logs in automatically. If session is returned:
       if (data?.session) {
-        setSuccessMsg('Account created successfully! Redirecting...');
+        setSuccessMsg('Account registered successfully! Redirecting...');
         setTimeout(() => router.push('/athlete/dashboard'), 1500);
       } else {
-        setSuccessMsg('Sign up successful! You can now log in using your password.');
+        setSuccessMsg('Sign up successful! Please log in using your password.');
         setAuthMode('signin');
         setPassword('');
       }
@@ -158,6 +155,17 @@ export default function AthleteLogin() {
           </form>
         ) : (
           <form onSubmit={handleSignUp} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Full Name</label>
+              <input 
+                type="text" 
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-sans"
+                required
+              />
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Gym Email Address</label>
               <input 
