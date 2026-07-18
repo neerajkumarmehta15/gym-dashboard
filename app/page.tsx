@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
 import Link from "next/link";
 
 interface MemberData {
@@ -50,8 +50,7 @@ export default function MasterSequence() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // --- ANALYTICS STATE ---
-  const [packageChartData, setPackageChartData] = useState<any[]>([]);
+
 
   // --- MEMBER MODAL STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -191,22 +190,7 @@ export default function MasterSequence() {
       setTotalRevenue(revenue);
     }
 
-    // Calculate package distribution chart data
-    if (memberData) {
-      const packageCounts: { [key: string]: number } = {};
-      memberData.forEach((m: any) => {
-        const pkg = m.package_name || 'Standard Pass';
-        packageCounts[pkg] = (packageCounts[pkg] || 0) + 1;
-      });
-      
-      const COLORS = ['#ff6b00', '#d4ff00', '#00f0ff', '#a855f7'];
-      const packageData = Object.keys(packageCounts).map((key, idx) => ({
-        name: key,
-        value: packageCounts[key],
-        color: COLORS[idx % COLORS.length]
-      }));
-      setPackageChartData(packageData);
-    }
+
     
     setIsSyncing(false);
   }
