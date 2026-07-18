@@ -50,10 +50,15 @@ export default function AthleteLogin() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    // 1. Perform Supabase Sign Up
+    // 1. Perform Supabase Sign Up (store full name in user metadata)
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
+      options: {
+        data: {
+          full_name: fullName
+        }
+      }
     });
 
     if (error) {
@@ -63,14 +68,29 @@ export default function AthleteLogin() {
     }
 
     // 2. Automatically register the athlete in the 'members' table
-    const { error: insertError } = await supabase
+    let insertData: any = {
+      full_name: fullName,
+      status: 'active',
+      joined_date: new Date().toISOString().split('T')[0]
+    };
+
+    // Try inserting with email first. If column doesn't exist, retry without email
+    let { error: insertError } = await supabase
       .from('members')
-      .insert([{
-        full_name: fullName,
-        email: email,
-        status: 'active',
-        joined_date: new Date().toISOString().split('T')[0]
-      }]);
+      .insert([{ ...insertData, email }]);
+
+    if (insertError) {
+      const isColumnError = insertError.message?.toLowerCase().includes('email') || 
+                            insertError.message?.toLowerCase().includes('column') ||
+                            insertError.code === '42703';
+      
+      if (isColumnError) {
+        const { error: retryError } = await supabase
+          .from('members')
+          .insert([insertData]);
+        insertError = retryError;
+      }
+    }
 
     setLoading(false);
     if (insertError) {

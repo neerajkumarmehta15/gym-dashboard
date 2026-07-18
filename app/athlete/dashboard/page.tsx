@@ -68,7 +68,7 @@ export default function AthleteDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && isMounted) {
         setUser(session.user);
-        fetchProfile(session.user.email || '');
+        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
       }
     };
     checkSession();
@@ -79,7 +79,7 @@ export default function AthleteDashboard() {
 
       if (session) {
         setUser(session.user);
-        fetchProfile(session.user.email || '');
+        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
       } else {
         // Redirect to login if initial session verification completed and no session exists
         if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
@@ -94,17 +94,39 @@ export default function AthleteDashboard() {
     };
   }, []);
 
-  async function fetchProfile(email: string) {
+  async function fetchProfile(email: string, userFullName: string) {
     setProfileLoading(true);
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
+    let matchedProfile = null;
 
-    if (data) {
-      setProfile(data);
-      fetchAthleteData(data.id);
+    // 1. Try matching by email
+    try {
+      const { data: emailData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+      if (emailData) {
+        matchedProfile = emailData;
+      }
+    } catch (e) {
+      // Column 'email' doesn't exist yet, ignore and use name matching fallback
+    }
+
+    // 2. Fallback to matching by full_name
+    if (!matchedProfile && userFullName) {
+      const { data: nameData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('full_name', userFullName)
+        .maybeSingle();
+      if (nameData) {
+        matchedProfile = nameData;
+      }
+    }
+
+    if (matchedProfile) {
+      setProfile(matchedProfile);
+      fetchAthleteData(matchedProfile.id);
     }
     setProfileLoading(false);
   }
