@@ -63,7 +63,16 @@ export default function AthleteLogin() {
 
     if (error) {
       setLoading(false);
-      setErrorMsg(error.message);
+      const isAlreadyRegistered = error.message?.toLowerCase().includes('already registered') || 
+                                  error.message?.toLowerCase().includes('already exists') ||
+                                  error.status === 422;
+      
+      if (isAlreadyRegistered) {
+        setErrorMsg('An account with this email is already registered. Please sign in below using your password.');
+        setAuthMode('signin');
+      } else {
+        setErrorMsg(error.message);
+      }
       return;
     }
 
