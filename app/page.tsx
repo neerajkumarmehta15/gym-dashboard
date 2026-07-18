@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from './supabase';
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, MapPin, Activity, QrCode, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-// Initialize Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface MemberData {
   id: string;
@@ -201,7 +196,7 @@ export default function MasterSequence() {
     }
 
     // Fetch and calculate attendance chart data (last 7 days)
-    const { data: checkins } = await supabase.from('attendance').select('created_at');
+    const { data: checkins } = await supabase.from('attendance').select('check_in_time');
     if (checkins) {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -215,7 +210,7 @@ export default function MasterSequence() {
       });
 
       checkins.forEach((log: any) => {
-        const dateStr = new Date(log.created_at).toISOString().split('T')[0];
+        const dateStr = new Date(log.check_in_time).toISOString().split('T')[0];
         const match = last7Days.find(d => d.dateStr === dateStr);
         if (match) {
           match.count++;
@@ -244,8 +239,8 @@ export default function MasterSequence() {
     // Load recent check-in feed
     const { data: latestCheckins } = await supabase
       .from('attendance')
-      .select('id, created_at, member_id')
-      .order('created_at', { ascending: false })
+      .select('id, check_in_time, member_id')
+      .order('check_in_time', { ascending: false })
       .limit(5);
 
     if (latestCheckins && memberData) {
@@ -254,8 +249,8 @@ export default function MasterSequence() {
         return {
           id: c.id,
           name: member ? member.full_name : 'Guest Athlete',
-          time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          date: new Date(c.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+          time: new Date(c.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(c.check_in_time).toLocaleDateString([], { month: 'short', day: 'numeric' })
         };
       });
       setRecentCheckins(feed);
