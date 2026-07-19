@@ -84,9 +84,9 @@ export default function AthleteLogin() {
 
   return (
     <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Back to Owner Portal link */}
-      <Link href="/login" className="absolute top-6 left-6 flex items-center gap-2 text-xs uppercase tracking-widest font-mono font-bold text-gray-500 hover:text-brand-volt transition-all z-20">
-        <ArrowLeft className="w-4 h-4" /> Owner Portal
+      {/* Back to Homepage link */}
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-xs uppercase tracking-widest font-mono font-bold text-gray-500 hover:text-brand-volt transition-all z-20">
+        <ArrowLeft className="w-4 h-4" /> Home
       </Link>
 
       {/* Glow ambient background elements */}
