@@ -19,6 +19,13 @@ interface MemberProfile {
   photo?: string | null;
 }
 
+interface SubscriptionInfo {
+  planName: string;
+  startDate: string | null;
+  endDate: string | null;
+  daysLeft: number;
+}
+
 interface Workout {
   id: string;
   exercise_name: string;
@@ -93,6 +100,9 @@ export default function AthleteDashboard() {
   const [photoBase64, setPhotoBase64] = useState('');
   const [photoStatus, setPhotoStatus] = useState('');
   const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+
+  // Subscription state
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
 
   // Dashboard logs
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
@@ -179,8 +189,50 @@ export default function AthleteDashboard() {
       setProfile(matchedProfile);
       localStorage.setItem('athlete_profile', JSON.stringify(matchedProfile));
       fetchAthleteData(matchedProfile.full_name);
+      fetchSubscriptionDetails(matchedProfile.id);
     }
     setProfileLoading(false);
+  }
+
+  async function fetchSubscriptionDetails(memberId: string) {
+    try {
+      const [subsRes, plansRes] = await Promise.all([
+        supabase.from('subscriptions').select('*').eq('member_id', memberId),
+        supabase.from('membership_plans').select('*')
+      ]);
+
+      if (subsRes.data && plansRes.data) {
+        const mSubs = subsRes.data;
+        const planData = plansRes.data;
+
+        let latestSub = null;
+        if (mSubs.length > 0) {
+          latestSub = mSubs.reduce((prev: any, current: any) => {
+            return (new Date(prev.end_date) > new Date(current.end_date)) ? prev : current;
+          });
+        }
+
+        if (latestSub) {
+          const matchedPlan = planData.find((p: any) => p.id === latestSub.plan_id);
+          const diffTime = new Date(latestSub.end_date).getTime() - new Date().getTime();
+          const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          const info = {
+            planName: matchedPlan ? matchedPlan.plan_name : 'Standard Plan',
+            startDate: latestSub.start_date,
+            endDate: latestSub.end_date,
+            daysLeft: daysLeft > 0 ? daysLeft : 0
+          };
+          setSubscription(info);
+          localStorage.setItem('athlete_subscription', JSON.stringify(info));
+        } else {
+          setSubscription(null);
+          localStorage.removeItem('athlete_subscription');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching subscription details:', err);
+    }
   }
 
   // Initialize Session, Profile, and Listen to Auth Changes
@@ -197,6 +249,7 @@ export default function AthleteDashboard() {
         const cachedWeight = localStorage.getItem('athlete_weight');
         const cachedSleep = localStorage.getItem('athlete_sleep');
         const cachedCoachSuggestion = localStorage.getItem('athlete_coach_suggestion');
+        const cachedSubscription = localStorage.getItem('athlete_subscription');
 
         // Load cached values instantly so there's no loading screen
         if (cachedProfile && isMounted) {
@@ -207,6 +260,7 @@ export default function AthleteDashboard() {
           if (cachedWeight) setCurrentWeight(Number(cachedWeight));
           if (cachedSleep) setCurrentSleep(Number(cachedSleep));
           if (cachedCoachSuggestion) setCoachSuggestion(cachedCoachSuggestion);
+          if (cachedSubscription) setSubscription(JSON.parse(cachedSubscription));
           setProfileLoading(false);
         }
 
@@ -226,6 +280,7 @@ export default function AthleteDashboard() {
             if (profileData && isMounted) {
               setProfile(profileData);
               localStorage.setItem('athlete_profile', JSON.stringify(profileData));
+              fetchSubscriptionDetails(profileData.id);
 
               // If we didn't have cached profile previously, fetch metrics now using the fresh name
               let wData = workoutsRes.data;
@@ -554,6 +609,7 @@ export default function AthleteDashboard() {
       localStorage.removeItem('athlete_weight');
       localStorage.removeItem('athlete_sleep');
       localStorage.removeItem('athlete_coach_suggestion');
+      localStorage.removeItem('athlete_subscription');
     }
     supabase.auth.signOut().then(() => {
       router.push('/athlete');
@@ -704,6 +760,21 @@ export default function AthleteDashboard() {
                   {profile.status}
                 </span>
               </p>
+              
+              {/* Membership & Subscription details */}
+              <div className="text-[11px] text-slate-450 font-mono mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 bg-brand-dark/40 border border-gray-900 px-3 py-1.5 rounded-lg select-none text-left">
+                <span>Joined: <span className="text-slate-200 font-semibold">{profile.joined_date}</span></span>
+                <span className="text-gray-700">•</span>
+                {subscription ? (
+                  <>
+                    <span>Plan: <span className="text-brand-volt font-semibold">{subscription.planName}</span></span>
+                    <span className="text-gray-700">•</span>
+                    <span>Expires: <span className={`${subscription.daysLeft <= 3 ? 'text-brand-orange font-bold' : 'text-slate-200 font-semibold'}`}>{subscription.endDate} <span className="text-[10px] text-gray-500">({subscription.daysLeft} days left)</span></span></span>
+                  </>
+                ) : (
+                  <span>Plan: <span className="text-rose-400 font-semibold">No Active Subscription</span></span>
+                )}
+              </div>
             </div>
           </div>
         <div className="flex w-full sm:w-auto gap-3">
