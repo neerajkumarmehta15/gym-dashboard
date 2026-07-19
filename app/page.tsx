@@ -706,22 +706,23 @@ export default function MasterSequence() {
   // ==========================================
   async function openAthleteDossier(athlete: MemberData) {
     setSelectedAthlete(athlete);
-    setOwnerSuggestion(athlete.suggestions || "");
+    setOwnerSuggestion(""); // clear first, will be loaded by fetchAthleteLogs
     fetchAthleteLogs(athlete.full_name);
   }
 
   async function handleSaveSuggestions() {
     if (!selectedAthlete) return;
     setSaveSuggestionStatus("Saving to Portal...");
-    const { error } = await supabase
-      .from('members')
-      .update({ suggestions: ownerSuggestion })
-      .eq('id', selectedAthlete.id);
+    const { error } = await supabase.from("workouts").insert([{
+      member_name: selectedAthlete.full_name,
+      exercise_name: `[Coach Note] ${ownerSuggestion}`,
+      sets: 0,
+      reps: 0,
+      weight_kg: 0
+    }]);
     
     if (!error) {
       setSaveSuggestionStatus("Suggestions Saved! ✅");
-      setSelectedAthlete(prev => prev ? { ...prev, suggestions: ownerSuggestion } : null);
-      setMembers(prev => prev.map(m => m.id === selectedAthlete.id ? { ...m, suggestions: ownerSuggestion } : m));
       setTimeout(() => setSaveSuggestionStatus(""), 3000);
     } else {
       setSaveSuggestionStatus(`Error: ${error.message}`);
@@ -729,8 +730,22 @@ export default function MasterSequence() {
   }
 
   async function fetchAthleteLogs(memberName: string) {
-    const { data } = await supabase.from("workouts").select("*").eq("member_name", memberName).order("created_at", { ascending: false }).limit(10);
-    if (data) setAthleteWorkouts(data);
+    const { data } = await supabase
+      .from("workouts")
+      .select("*")
+      .eq("member_name", memberName)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (data) {
+      // Find the latest coach note suggestion
+      const latestNote = data.find(w => w.exercise_name.startsWith("[Coach Note] "));
+      setOwnerSuggestion(latestNote ? latestNote.exercise_name.substring(13) : "");
+
+      // Filter out coach notes from the visible workouts list
+      const logs = data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+      setAthleteWorkouts(logs.slice(0, 10));
+    }
   }
 
   async function handleAssignWorkout(e: React.FormEvent) {
@@ -766,20 +781,18 @@ export default function MasterSequence() {
         reps: parseInt(assignReps), 
         weight_kg: finalWeight 
       }]),
-      supabase
-        .from('members')
-        .update({ suggestions: ownerSuggestion })
-        .eq('id', selectedAthlete.id)
+      supabase.from("workouts").insert([{
+        member_name: selectedAthlete.full_name,
+        exercise_name: `[Coach Note] ${ownerSuggestion}`,
+        sets: 0,
+        reps: 0,
+        weight_kg: 0
+      }])
     ]);
 
     if (!workoutRes.error && !suggestionRes.error) {
       setAssignStatus("Workout & Suggestions Pushed! ✅");
       setAssignEx(""); setAssignSets(""); setAssignReps(""); setAssignWeight("");
-      
-      // Update local state for suggestions so the UI stays in sync
-      setSelectedAthlete(prev => prev ? { ...prev, suggestions: ownerSuggestion } : null);
-      setMembers(prev => prev.map(m => m.id === selectedAthlete.id ? { ...m, suggestions: ownerSuggestion } : m));
-      
       fetchAthleteLogs(selectedAthlete.full_name);
       setTimeout(() => setAssignStatus(""), 3000);
     } else {

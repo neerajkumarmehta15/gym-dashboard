@@ -93,6 +93,7 @@ export default function AthleteDashboard() {
   const [dailyProtein, setDailyProtein] = useState(0);
   const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [currentSleep, setCurrentSleep] = useState<number | null>(null);
+  const [coachSuggestion, setCoachSuggestion] = useState('');
 
   const proteinTarget = 160;
 
@@ -106,7 +107,7 @@ export default function AthleteDashboard() {
         .select('*')
         .eq('member_name', memberName)
         .order('created_at', { ascending: false })
-        .limit(10),
+        .limit(30),
       supabase
         .from('nutrition_logs')
         .select('protein_grams')
@@ -120,7 +121,15 @@ export default function AthleteDashboard() {
         .limit(1)
     ]);
 
-    if (workoutsRes.data) setRecentWorkouts(workoutsRes.data);
+    if (workoutsRes.data) {
+      // Find the latest coach note suggestion
+      const latestNote = workoutsRes.data.find(w => w.exercise_name.startsWith("[Coach Note] "));
+      setCoachSuggestion(latestNote ? latestNote.exercise_name.substring(13) : "");
+
+      // Filter out coach notes from the visible workouts list
+      const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+      setRecentWorkouts(actualWorkouts.slice(0, 10));
+    }
     if (nutritionRes.data) {
       setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
     }
@@ -170,12 +179,18 @@ export default function AthleteDashboard() {
             setProfile(profileData);
             
             const [workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
-              supabase.from('workouts').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(10),
+              supabase.from('workouts').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(30),
               supabase.from('nutrition_logs').select('protein_grams').eq('member_name', profileData.full_name).gte('created_at', today),
               supabase.from('recovery_metrics').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(1)
             ]);
 
-            if (workoutsRes.data) setRecentWorkouts(workoutsRes.data);
+            if (workoutsRes.data) {
+              const latestNote = workoutsRes.data.find(w => w.exercise_name.startsWith("[Coach Note] "));
+              setCoachSuggestion(latestNote ? latestNote.exercise_name.substring(13) : "");
+
+              const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+              setRecentWorkouts(actualWorkouts.slice(0, 10));
+            }
             if (nutritionRes.data) {
               setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
             }
@@ -587,10 +602,10 @@ export default function AthleteDashboard() {
                 <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-brand-orange animate-pulse" /> COACH RECOMMENDATION
                 </h3>
-                {profile?.suggestions && (
+                {coachSuggestion && (
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(profile.suggestions || "");
+                      navigator.clipboard.writeText(coachSuggestion || "");
                       alert("Copied suggestions to clipboard! 📋");
                     }}
                     className="text-[10px] font-mono text-brand-orange hover:underline font-bold uppercase tracking-wider cursor-pointer"
@@ -601,9 +616,9 @@ export default function AthleteDashboard() {
                 )}
               </div>
               <div className="bg-brand-dark/50 border border-gray-900/60 p-4 rounded-xl">
-                {profile?.suggestions ? (
+                {coachSuggestion ? (
                   <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line font-sans">
-                    {profile.suggestions}
+                    {coachSuggestion}
                   </p>
                 ) : (
                   <p className="text-gray-500 text-xs italic font-sans text-center py-2">
