@@ -94,6 +94,14 @@ export default function MasterSequence() {
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [alertMember, setAlertMember] = useState<MemberData | null>(null);
 
+  // --- PHOTO PREVIEW STATE ---
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [previewPhotoName, setPreviewPhotoName] = useState('');
+  const [zoomScale, setZoomScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
   const [athleteWorkouts, setAthleteWorkouts] = useState<Workout[]>([]);
@@ -294,6 +302,67 @@ export default function MasterSequence() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- Photo Preview Zoom & Pan Handlers ---
+  const handleZoomIn = () => {
+    setZoomScale(prev => Math.min(prev + 0.5, 4));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale(prev => {
+      const next = Math.max(prev - 0.5, 1);
+      if (next === 1) {
+        setPanOffset({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const handleZoomReset = () => {
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const closePhotoPreview = () => {
+    setPreviewPhotoUrl(null);
+    setPreviewPhotoName('');
+    handleZoomReset();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomScale <= 1) return;
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning) return;
+    setPanOffset({
+      x: e.clientX - panStart.x,
+      y: e.clientY - panStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (zoomScale <= 1 || e.touches.length !== 1) return;
+    setIsPanning(true);
+    setPanStart({ 
+      x: e.touches[0].clientX - panOffset.x, 
+      y: e.touches[0].clientY - panOffset.y 
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPanning || e.touches.length !== 1) return;
+    setPanOffset({
+      x: e.touches[0].clientX - panStart.x,
+      y: e.touches[0].clientY - panStart.y
+    });
+  };
 
   async function toggleMemberStatus(id: string, currentStatus: string) {
     const nextStatus = currentStatus === 'active' ? 'expired' : 'active';
@@ -793,7 +862,15 @@ export default function MasterSequence() {
                 <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
                   <div className="flex items-center gap-4">
                     {/* Avatar Container */}
-                    <div className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''}`}>
+                    <div 
+                      className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''} ${resolvedPhoto ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (resolvedPhoto) {
+                          setPreviewPhotoUrl(resolvedPhoto);
+                          setPreviewPhotoName(member.full_name);
+                        }
+                      }}
+                    >
                       {resolvedPhoto ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={resolvedPhoto} alt={member.full_name} />
@@ -1199,6 +1276,83 @@ export default function MasterSequence() {
         </div>
       )}
 
+
+      {/* --- PHOTO PREVIEW & ZOOM MODAL --- */}
+      {previewPhotoUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none">
+          {/* Close Area */}
+          <div className="absolute inset-0 cursor-zoom-out" onClick={closePhotoPreview}></div>
+          
+          <div className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center justify-center z-10">
+            {/* Header with Title & Close Icon */}
+            <div className="absolute top-[-48px] left-0 right-0 flex justify-between items-center text-white px-2">
+              <span className="text-sm font-bold tracking-wider uppercase text-slate-300">{previewPhotoName}</span>
+              <button 
+                onClick={closePhotoPreview} 
+                className="p-2 bg-slate-900/80 border border-slate-800 hover:border-rose-500/50 rounded-xl text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Photo Container */}
+            <div 
+              className="w-full h-full overflow-hidden flex items-center justify-center border border-slate-800/80 bg-slate-950/40 rounded-2xl relative shadow-2xl"
+              style={{ height: '70vh' }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleMouseUp}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={previewPhotoUrl} 
+                alt={previewPhotoName} 
+                draggable={false}
+                className="max-w-full max-h-full object-contain select-none transition-transform duration-100 ease-out"
+                style={{
+                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                  cursor: zoomScale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default'
+                }}
+              />
+            </div>
+
+            {/* Zoom / Pan Action Bar */}
+            <div className="absolute bottom-[-56px] flex items-center gap-4 bg-slate-900/80 border border-slate-800 rounded-2xl px-5 py-2.5 shadow-xl">
+              <button 
+                onClick={handleZoomOut} 
+                disabled={zoomScale <= 1}
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg"
+                title="Zoom Out"
+              >
+                ➖
+              </button>
+              <span className="text-xs font-mono font-bold text-brand-volt min-w-[40px] text-center">
+                {Math.round(zoomScale * 100)}%
+              </span>
+              <button 
+                onClick={handleZoomIn} 
+                disabled={zoomScale >= 4}
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg"
+                title="Zoom In"
+              >
+                ➕
+              </button>
+              <div className="w-[1px] h-4 bg-slate-800"></div>
+              <button 
+                onClick={handleZoomReset} 
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-brand-orange transition-all cursor-pointer px-2.5 py-1.5 hover:bg-slate-800 rounded-lg"
+              >
+                Reset
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
