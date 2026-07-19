@@ -301,6 +301,61 @@ export default function MasterSequence() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- INACTIVITY AUTO-LOGOUT (10 MINS) & REFRESH LIMITER ---
+  useEffect(() => {
+    // Only apply if user is authenticated as owner
+    if (authStatus !== 'owner') return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const handleAutoLogout = async () => {
+      await supabase.auth.signOut();
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('owner_session_active');
+        sessionStorage.removeItem('owner_refresh_count');
+      }
+      router.push('/login');
+    };
+
+    // 1. Inactivity Timer Reset
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      // 10 minutes = 600,000 ms
+      timeoutId = setTimeout(() => {
+        handleAutoLogout();
+      }, 10 * 60 * 1000);
+    };
+
+    // 2. Track Refreshes
+    if (typeof window !== 'undefined') {
+      const countStr = sessionStorage.getItem('owner_refresh_count') || '0';
+      const nextCount = parseInt(countStr, 10) + 1;
+      sessionStorage.setItem('owner_refresh_count', nextCount.toString());
+      if (nextCount > 3) {
+        sessionStorage.removeItem('owner_refresh_count');
+        handleAutoLogout();
+        alert('Logged out due to refreshing the page more than 3 times.');
+        return;
+      }
+    }
+
+    // Set up inactivity events
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Start initial timer
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [authStatus, router]);
+
   // Click outside listener to close active dropdown menu or expanded photo
   useEffect(() => {
     if (activeMenuMemberId === null && expandedPhotoMemberId === null) return;
@@ -820,7 +875,7 @@ export default function MasterSequence() {
         </div>
         <div className="flex gap-3">
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-brand-volt text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans transition-all glow-btn-volt"><UserPlus className="w-4 h-4" /> Add Member</button>
-          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') sessionStorage.removeItem('owner_session_active'); window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
+          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); } window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
         </div>
       </div>
 
