@@ -63,7 +63,7 @@ export default function AthleteDashboard() {
 
   const proteinTarget = 160;
 
-  async function fetchAthleteData(memberId: string) {
+  async function fetchAthleteData(memberName: string) {
     const today = new Date().toISOString().split('T')[0];
 
     // Parallelize all raw athlete data fetching queries to speed up loads
@@ -71,18 +71,18 @@ export default function AthleteDashboard() {
       supabase
         .from('workouts')
         .select('*')
-        .eq('member_id', memberId)
+        .eq('member_name', memberName)
         .order('created_at', { ascending: false })
         .limit(10),
       supabase
         .from('nutrition_logs')
         .select('protein_grams')
-        .eq('member_id', memberId)
+        .eq('member_name', memberName)
         .gte('created_at', today),
       supabase
         .from('recovery_metrics')
         .select('*')
-        .eq('member_id', memberId)
+        .eq('member_name', memberName)
         .order('created_at', { ascending: false })
         .limit(1)
     ]);
@@ -114,7 +114,7 @@ export default function AthleteDashboard() {
 
     if (matchedProfile) {
       setProfile(matchedProfile);
-      fetchAthleteData(matchedProfile.id);
+      fetchAthleteData(matchedProfile.full_name);
     }
     setProfileLoading(false);
   }
@@ -130,17 +130,18 @@ export default function AthleteDashboard() {
         if (directId) {
           const today = new Date().toISOString().split('T')[0];
 
-          // Fetch athlete profile AND metrics in parallel to load the dashboard in a single pass
-          const [profileRes, workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
-            supabase.from('members').select('*').eq('id', directId).maybeSingle(),
-            supabase.from('workouts').select('*').eq('member_id', directId).order('created_at', { ascending: false }).limit(10),
-            supabase.from('nutrition_logs').select('protein_grams').eq('member_id', directId).gte('created_at', today),
-            supabase.from('recovery_metrics').select('*').eq('member_id', directId).order('created_at', { ascending: false }).limit(1)
-          ]);
+          // Fetch the profileData first to get the athlete's full name, then fetch their workouts & metrics in parallel
+          const { data: profileData } = await supabase.from('members').select('*').eq('id', directId).maybeSingle();
           
-          const profileData = profileRes.data;
           if (profileData && isMounted) {
             setProfile(profileData);
+            
+            const [workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
+              supabase.from('workouts').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(10),
+              supabase.from('nutrition_logs').select('protein_grams').eq('member_name', profileData.full_name).gte('created_at', today),
+              supabase.from('recovery_metrics').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(1)
+            ]);
+
             if (workoutsRes.data) setRecentWorkouts(workoutsRes.data);
             if (nutritionRes.data) {
               setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
@@ -203,7 +204,6 @@ export default function AthleteDashboard() {
     setWorkoutStatus('Logging lift...');
 
     const { error } = await supabase.from('workouts').insert([{
-      member_id: profile.id,
       member_name: profile.full_name,
       exercise_name: exercise,
       sets: parseInt(sets),
@@ -214,7 +214,7 @@ export default function AthleteDashboard() {
     if (!error) {
       setWorkoutStatus('Workout Logged! ⚡');
       setExercise(''); setSets(''); setReps(''); setWeight('');
-      fetchAthleteData(profile.id);
+      fetchAthleteData(profile.full_name);
       setTimeout(() => {
         setWorkoutStatus('');
         setIsWorkoutOpen(false);
@@ -227,7 +227,7 @@ export default function AthleteDashboard() {
   async function handleDeleteWorkout(id: string) {
     if (!profile) return;
     const { error } = await supabase.from('workouts').delete().eq('id', id);
-    if (!error) fetchAthleteData(profile.id);
+    if (!error) fetchAthleteData(profile.full_name);
   }
 
   // Nutrition logging
@@ -236,7 +236,6 @@ export default function AthleteDashboard() {
     setNutritionStatus(`Logging ${food}...`);
 
     const { error } = await supabase.from('nutrition_logs').insert([{
-      member_id: profile.id,
       member_name: profile.full_name,
       food_item: food,
       protein_grams: protein
@@ -244,7 +243,7 @@ export default function AthleteDashboard() {
 
     if (!error) {
       setNutritionStatus(`Added ${food} (+${protein}g) 🥩`);
-      fetchAthleteData(profile.id);
+      fetchAthleteData(profile.full_name);
       setTimeout(() => setNutritionStatus(''), 3000);
     } else {
       setNutritionStatus(`Error: ${error.message}`);
@@ -260,7 +259,6 @@ export default function AthleteDashboard() {
 
     setNutritionStatus(`Logging...`);
     const { error } = await supabase.from('nutrition_logs').insert([{
-      member_id: profile.id,
       member_name: profile.full_name,
       food_item: sources,
       protein_grams: protein
@@ -268,7 +266,7 @@ export default function AthleteDashboard() {
 
     if (!error) {
       setNutritionStatus(`Logged! ✅`);
-      fetchAthleteData(profile.id);
+      fetchAthleteData(profile.full_name);
       e.currentTarget.reset();
       setTimeout(() => {
         setNutritionStatus('');
@@ -286,7 +284,6 @@ export default function AthleteDashboard() {
     setMetricsStatus('Updating recovery metrics...');
 
     const { error } = await supabase.from('recovery_metrics').insert([{
-      member_id: profile.id,
       member_name: profile.full_name,
       body_weight_kg: inputWeight ? parseFloat(inputWeight) : currentWeight,
       sleep_hours: inputSleep ? parseFloat(inputSleep) : currentSleep
@@ -295,7 +292,7 @@ export default function AthleteDashboard() {
     if (!error) {
       setMetricsStatus('Recovery Metrics Saved! 📈');
       setInputWeight(''); setInputSleep('');
-      fetchAthleteData(profile.id);
+      fetchAthleteData(profile.full_name);
       setTimeout(() => setMetricsStatus(''), 3000);
     } else {
       setMetricsStatus(`Error: ${error.message}`);

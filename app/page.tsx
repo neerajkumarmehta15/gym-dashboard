@@ -674,7 +674,7 @@ export default function MasterSequence() {
   async function openAthleteDossier(athlete: MemberData) {
     setSelectedAthlete(athlete);
     setOwnerSuggestion(athlete.suggestions || "");
-    fetchAthleteLogs(athlete.id);
+    fetchAthleteLogs(athlete.full_name);
   }
 
   async function handleSaveSuggestions() {
@@ -695,8 +695,8 @@ export default function MasterSequence() {
     }
   }
 
-  async function fetchAthleteLogs(memberId: string) {
-    const { data } = await supabase.from("workouts").select("*").eq("member_id", memberId).order("created_at", { ascending: false }).limit(10);
+  async function fetchAthleteLogs(memberName: string) {
+    const { data } = await supabase.from("workouts").select("*").eq("member_name", memberName).order("created_at", { ascending: false }).limit(10);
     if (data) setAthleteWorkouts(data);
   }
 
@@ -707,7 +707,6 @@ export default function MasterSequence() {
     setAssignStatus("Assigning to Matrix...");
     const { error } = await supabase.from("workouts").insert([{ 
       member_name: selectedAthlete.full_name,
-      member_id: selectedAthlete.id,
       exercise_name: assignEx, 
       sets: parseInt(assignSets), 
       reps: parseInt(assignReps), 
@@ -717,7 +716,7 @@ export default function MasterSequence() {
     if (!error) {
       setAssignStatus("Workout Assigned! ✅");
       setAssignEx(""); setAssignSets(""); setAssignReps(""); setAssignWeight("");
-      fetchAthleteLogs(selectedAthlete.id);
+      fetchAthleteLogs(selectedAthlete.full_name);
       setTimeout(() => setAssignStatus(""), 3000);
     } else {
       setAssignStatus(`Error: ${error.message}`);
@@ -726,7 +725,7 @@ export default function MasterSequence() {
 
   async function handleDeleteWorkout(id: string) {
     const { error } = await supabase.from("workouts").delete().eq("id", id);
-    if (!error && selectedAthlete) fetchAthleteLogs(selectedAthlete.id);
+    if (!error && selectedAthlete) fetchAthleteLogs(selectedAthlete.full_name);
   }
 
   // --- Search Filter Logic ---
