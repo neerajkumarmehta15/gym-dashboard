@@ -1297,8 +1297,7 @@ export default function MasterSequence() {
 
             {/* Photo Container */}
             <div 
-              className="w-full h-full overflow-hidden flex items-center justify-center border border-slate-800/80 bg-slate-950/40 rounded-2xl relative shadow-2xl"
-              style={{ height: '70vh' }}
+              className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden flex items-center justify-center border-4 border-slate-800 bg-slate-950/60 relative shadow-2xl"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -1312,7 +1311,7 @@ export default function MasterSequence() {
                 src={previewPhotoUrl} 
                 alt={previewPhotoName} 
                 draggable={false}
-                className="max-w-full max-h-full object-contain select-none transition-transform duration-100 ease-out"
+                className="w-full h-full object-cover select-none transition-transform duration-100 ease-out"
                 style={{
                   transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
                   cursor: zoomScale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default'
