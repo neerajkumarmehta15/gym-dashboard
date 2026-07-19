@@ -160,7 +160,8 @@ export default function MasterSequence() {
     if (!session) {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (!currentSession) {
-        router.push('/login');
+        setAuthStatus('guest');
+        setIsSyncing(false);
         return; 
       }
       session = currentSession;
@@ -258,9 +259,15 @@ export default function MasterSequence() {
     // 1. Initial check from storage
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && isMounted && !hasLoaded) {
-        hasLoaded = true;
-        initializeEngine(session);
+      if (isMounted) {
+        if (session) {
+          if (!hasLoaded) {
+            hasLoaded = true;
+            initializeEngine(session);
+          }
+        } else {
+          setAuthStatus('guest');
+        }
       }
     };
     checkSession();
@@ -275,9 +282,9 @@ export default function MasterSequence() {
           initializeEngine(session);
         }
       } else {
-        // Redirect to login if initial session verification completed and no session exists
         if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
-          router.push('/login');
+          hasLoaded = false;
+          setAuthStatus('guest');
         }
       }
     });
@@ -634,7 +641,86 @@ export default function MasterSequence() {
     );
   }
 
+  // ==========================================
+  // RENDER 2: GUEST HOMEPAGE / PORTAL SELECTION
+  // ==========================================
+  if (authStatus === 'guest') {
+    return (
+      <div className="min-h-screen bg-brand-dark text-gray-100 p-6 font-sans relative overflow-hidden flex flex-col justify-between">
+        {/* ambient glows */}
+        <div className="absolute top-[-10%] left-[-15%] w-[500px] h-[500px] bg-brand-orange/5 blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-15%] w-[500px] h-[500px] bg-brand-volt/5 blur-[120px] rounded-full pointer-events-none"></div>
 
+        {/* Top Header / Brand */}
+        <header className="max-w-6xl w-full mx-auto flex justify-between items-center py-4 border-b border-slate-900 relative z-10">
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl text-3d-gymnation">GYMNATION</h1>
+          </div>
+          <p className="text-xs text-gray-500 font-mono uppercase tracking-wider hidden sm:block">Matrix Portal v1.0</p>
+        </header>
+
+        {/* Main Content Hero */}
+        <main className="max-w-4xl w-full mx-auto py-12 flex flex-col items-center justify-center gap-10 text-center relative z-10 flex-1">
+          <div className="space-y-3">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight uppercase bg-clip-text text-transparent bg-gradient-to-r from-gray-100 to-gray-400">
+              Welcome to the Matrix
+            </h2>
+            <p className="text-gray-400 max-w-lg mx-auto text-sm md:text-base leading-relaxed">
+              Access your personalized portal below to log your metrics, track progress, or manage gym operations.
+            </p>
+          </div>
+
+          {/* Cards Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl mt-4">
+            
+            {/* Owner Portal card */}
+            <div className="glass-panel glass-panel-hover p-8 rounded-2xl flex flex-col justify-between items-center text-center gap-6 border-slate-800/60">
+              <div className="space-y-2.5">
+                <div className="w-12 h-12 rounded-xl bg-brand-orange/10 border border-brand-orange/20 text-brand-orange flex items-center justify-center mx-auto text-xl font-bold">
+                  💼
+                </div>
+                <h3 className="text-lg font-bold text-white tracking-wide uppercase">Owner Portal</h3>
+                <p className="text-xs text-gray-450 leading-relaxed max-w-xs mx-auto">
+                  Access the Live CRM Database engine, manage plans, members, and review daily revenue logs.
+                </p>
+              </div>
+              <button 
+                onClick={() => router.push('/login')} 
+                className="w-full bg-brand-orange/10 hover:bg-brand-orange/20 border border-brand-orange/30 text-brand-orange font-bold py-3 rounded-xl text-xs uppercase tracking-widest transition-all"
+              >
+                Sign In As Owner
+              </button>
+            </div>
+
+            {/* Athlete Portal card */}
+            <div className="glass-panel glass-panel-hover p-8 rounded-2xl flex flex-col justify-between items-center text-center gap-6 border-slate-800/60">
+              <div className="space-y-2.5">
+                <div className="w-12 h-12 rounded-xl bg-brand-volt/10 border border-brand-volt/20 text-brand-volt flex items-center justify-center mx-auto text-xl font-bold">
+                  ⚡
+                </div>
+                <h3 className="text-lg font-bold text-white tracking-wide uppercase">Athlete Portal</h3>
+                <p className="text-xs text-gray-450 leading-relaxed max-w-xs mx-auto">
+                  Track strength logs, update daily protein metrics, log body weight, and access digital check-in passes.
+                </p>
+              </div>
+              <button 
+                onClick={() => router.push('/athlete')} 
+                className="w-full bg-brand-volt/10 hover:bg-brand-volt/20 border border-brand-volt/30 text-brand-volt font-bold py-3 rounded-xl text-xs uppercase tracking-widest transition-all"
+              >
+                Enter Athlete Portal
+              </button>
+            </div>
+
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="max-w-6xl w-full mx-auto text-center py-4 border-t border-slate-900 text-[10px] text-gray-500 font-mono relative z-10">
+          © {new Date().getFullYear()} GYMNATION. All Rights Secured.
+        </footer>
+      </div>
+    );
+  }
 
   // ==========================================
   // RENDER 3: CRM DASHBOARD
