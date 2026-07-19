@@ -94,6 +94,12 @@ export default function AthleteDashboard() {
   const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [currentSleep, setCurrentSleep] = useState<number | null>(null);
   const [coachSuggestion, setCoachSuggestion] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
 
   const proteinTarget = 160;
 
@@ -128,8 +134,8 @@ export default function AthleteDashboard() {
       setCoachSuggestion(noteText);
       localStorage.setItem('athlete_coach_suggestion', noteText);
 
-      // Filter out coach notes from the visible workouts list
-      const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+      // Filter out coach notes and check-ins from the visible workouts list
+      const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] ") && !w.exercise_name.startsWith("[Check-In] "));
       const sliced = actualWorkouts.slice(0, 10);
       setRecentWorkouts(sliced);
       localStorage.setItem('athlete_workouts', JSON.stringify(sliced));
@@ -236,7 +242,7 @@ export default function AthleteDashboard() {
                 setCoachSuggestion(noteText);
                 localStorage.setItem('athlete_coach_suggestion', noteText);
 
-                const actualWorkouts = wData.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+                const actualWorkouts = wData.filter(w => !w.exercise_name.startsWith("[Coach Note] ") && !w.exercise_name.startsWith("[Check-In] "));
                 const sliced = actualWorkouts.slice(0, 10);
                 setRecentWorkouts(sliced);
                 localStorage.setItem('athlete_workouts', JSON.stringify(sliced));
@@ -314,6 +320,37 @@ export default function AthleteDashboard() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Realtime Supabase Subscription for Coach Workouts & Suggestions updates
+  useEffect(() => {
+    if (!profile?.full_name) return;
+
+    const channel = supabase
+      .channel(`workouts-${profile.full_name}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'workouts',
+          filter: `member_name=eq.${profile.full_name}`
+        },
+        (payload) => {
+          fetchAthleteData(profile.full_name);
+          const exName = payload.new.exercise_name || '';
+          if (exName.startsWith("[Coach Note] ")) {
+            showToast("New suggestion notes received from Coach! 💡");
+          } else if (exName.endsWith(" [Coach]")) {
+            showToast("New workout routine pushed by Coach! ⚡");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.full_name]);
 
   // Workouts logging
   async function handleLogWorkout(e: React.FormEvent) {
@@ -1068,6 +1105,18 @@ export default function AthleteDashboard() {
               <span className="font-extrabold text-sm text-white block">{profile.full_name}</span>
               <span className="text-[10px] text-gray-500 font-mono select-all block">{profile.id}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- REALTIME SLIDING TOAST --- */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-brand-orange to-brand-volt p-[1px] rounded-xl shadow-2xl max-w-sm border border-brand-orange/30 animate-pulse">
+          <div className="bg-brand-dark px-5 py-3.5 rounded-[11px] flex items-center gap-3">
+            <span className="text-brand-volt font-bold text-xs uppercase tracking-wider font-sans select-none flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-brand-volt animate-ping" /> Live Update
+            </span>
+            <p className="text-white text-xs font-semibold font-sans">{toastMessage}</p>
           </div>
         </div>
       )}
