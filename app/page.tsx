@@ -1385,6 +1385,58 @@ export default function MasterSequence() {
                 <div>
                   <h3 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2"><Activity className="w-5 h-5"/> Assign Workout Routine</h3>
                   <form onSubmit={handleAssignWorkout} className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1.5 uppercase font-mono tracking-widest font-bold">Pre-Planned Workout Helper</label>
+                      <select 
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setAssignEx(e.target.value);
+                            if (!assignSets) setAssignSets("4");
+                            if (!assignReps) setAssignReps("12");
+                            if (!assignWeight) setAssignWeight("20");
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-slate-750 rounded p-3 text-sm text-white focus:outline-none focus:border-blue-500 font-sans"
+                      >
+                        <option value="">-- Choose Pre-Planned Routine (Optional) --</option>
+                        <optgroup label="Monday: Chest & Triceps">
+                          <option value="Bench Press">Flat Bench Press (Chest)</option>
+                          <option value="Incline Dumbbell Press">Incline Dumbbell Press (Chest)</option>
+                          <option value="Tricep Cable Pushdown">Tricep Cable Pushdown (Triceps)</option>
+                          <option value="Chest Fly">Dumbbell Chest Fly (Chest)</option>
+                        </optgroup>
+                        <optgroup label="Tuesday: Back & Biceps">
+                          <option value="Lat Pulldown">Lat Pulldown (Back)</option>
+                          <option value="Seated Cable Row">Seated Cable Row (Back)</option>
+                          <option value="Barbell Bicep Curl">Barbell Bicep Curl (Biceps)</option>
+                          <option value="Pull-ups">Bodyweight Pull-ups (Back)</option>
+                        </optgroup>
+                        <optgroup label="Wednesday: Legs & Calves">
+                          <option value="Barbell Squat">Barbell Squat (Legs)</option>
+                          <option value="Leg Press">Leg Press (Legs)</option>
+                          <option value="Leg Curl">Seated Leg Curl (Hamstrings)</option>
+                          <option value="Calf Raise">Standing Calf Raise (Calves)</option>
+                        </optgroup>
+                        <optgroup label="Thursday: Shoulders & Abs">
+                          <option value="Overhead Barbell Press">Overhead Barbell Press (Shoulders)</option>
+                          <option value="Dumbbell Lateral Raise">Dumbbell Lateral Raise (Shoulders)</option>
+                          <option value="Hanging Leg Raise">Hanging Leg Raise (Abs)</option>
+                          <option value="Plank">Plank (Core)</option>
+                        </optgroup>
+                        <optgroup label="Friday: Arms & Forearms">
+                          <option value="Dumbbell Bicep Curl">Dumbbell Bicep Curl (Biceps)</option>
+                          <option value="Lying Tricep Extension">Lying Tricep Extension (Triceps)</option>
+                          <option value="Hammer Bicep Curl">Hammer Bicep Curl (Biceps)</option>
+                          <option value="Wrist Curl">Behind-Back Wrist Curl (Forearms)</option>
+                        </optgroup>
+                        <optgroup label="Saturday: Cardio & Core">
+                          <option value="Treadmill Run">Treadmill Run (Cardio)</option>
+                          <option value="Stationary Cycling">Stationary Cycling (Cardio)</option>
+                          <option value="Russian Twist">Russian Twist (Core)</option>
+                          <option value="Elliptical Trainer">Elliptical Trainer (Cardio)</option>
+                        </optgroup>
+                      </select>
+                    </div>
                     <input type="text" required value={assignEx} onChange={(e) => setAssignEx(e.target.value)} placeholder="Exercise Name" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-blue-500" />
                     <div className="flex gap-4">
                       <input type="number" required value={assignSets} onChange={(e) => setAssignSets(e.target.value)} placeholder="Sets" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
