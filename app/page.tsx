@@ -116,8 +116,8 @@ export default function MasterSequence() {
     const sentReminders = JSON.parse(localStorage.getItem('gymnation_sent_reminders') || '{}');
     let hasSentAny = false;
 
-    // Filter members expiring in 7 days or fewer (and not expired)
-    const expiringSoon = membersList.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 7);
+    // Filter members expiring in 3 days or fewer (and not expired)
+    const expiringSoon = membersList.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 3);
 
     for (const member of expiringSoon) {
       const lastSentDate = sentReminders[member.id];
@@ -655,7 +655,7 @@ export default function MasterSequence() {
     } else if (statusFilter === 'expired') {
       matchesStatus = m.status === 'expired';
     } else if (statusFilter === 'expiring_soon') {
-      matchesStatus = (m.days_left || 0) > 0 && (m.days_left || 0) <= 7;
+      matchesStatus = (m.days_left || 0) > 0 && (m.days_left || 0) <= 3;
     }
     
     return matchesSearch && matchesStatus;
@@ -663,7 +663,7 @@ export default function MasterSequence() {
 
   const activeMembers = members.filter(m => m.status === 'active');
   const expiredMembers = members.filter(m => m.status === 'expired');
-  const expiringSoonMembers = members.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 7);
+  const expiringSoonMembers = members.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 3);
 
 
   // ==========================================
@@ -965,7 +965,7 @@ export default function MasterSequence() {
                         <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-gray-400 font-mono uppercase">{resolvedGender}</span>
                         {member.end_date && (
                           <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono uppercase ${
-                            (member.days_left || 0) > 7 
+                            (member.days_left || 0) > 3 
                               ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' 
                               : (member.days_left || 0) > 0 
                                 ? 'bg-brand-orange/10 text-brand-orange border border-brand-orange/20' 
@@ -974,7 +974,7 @@ export default function MasterSequence() {
                             {(member.days_left || 0) > 0 ? `${member.days_left} Days Left` : 'Expired'}
                           </span>
                         )}
-                        {(member.days_left || 0) <= 7 && (member.days_left || 0) > 0 && (
+                        {(member.days_left || 0) <= 3 && (member.days_left || 0) > 0 && (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1030,7 +1030,7 @@ export default function MasterSequence() {
                         >
                           <PlusCircle className="w-3.5 h-3.5" /> Add Subscription
                         </button>
-                        {(member.days_left || 0) <= 7 && (member.days_left || 0) > 0 && (
+                        {(member.days_left || 0) <= 3 && (member.days_left || 0) > 0 && (
                           <button 
                             onClick={() => {
                               setActiveMenuMemberId(null);
