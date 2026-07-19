@@ -744,21 +744,34 @@ export default function MasterSequence() {
       finalExName = `${assignEx}${suffix}`;
     }
 
-    const { error } = await supabase.from("workouts").insert([{ 
-      member_name: selectedAthlete.full_name,
-      exercise_name: finalExName, 
-      sets: parseInt(assignSets), 
-      reps: parseInt(assignReps), 
-      weight_kg: finalWeight 
-    }]);
+    // Insert the workout AND update the suggestion concurrently!
+    const [workoutRes, suggestionRes] = await Promise.all([
+      supabase.from("workouts").insert([{ 
+        member_name: selectedAthlete.full_name,
+        exercise_name: finalExName, 
+        sets: parseInt(assignSets), 
+        reps: parseInt(assignReps), 
+        weight_kg: finalWeight 
+      }]),
+      supabase
+        .from('members')
+        .update({ suggestions: ownerSuggestion })
+        .eq('id', selectedAthlete.id)
+    ]);
 
-    if (!error) {
-      setAssignStatus("Workout Assigned! ✅");
+    if (!workoutRes.error && !suggestionRes.error) {
+      setAssignStatus("Workout & Suggestions Pushed! ✅");
       setAssignEx(""); setAssignSets(""); setAssignReps(""); setAssignWeight("");
+      
+      // Update local state for suggestions so the UI stays in sync
+      setSelectedAthlete(prev => prev ? { ...prev, suggestions: ownerSuggestion } : null);
+      setMembers(prev => prev.map(m => m.id === selectedAthlete.id ? { ...m, suggestions: ownerSuggestion } : m));
+      
       fetchAthleteLogs(selectedAthlete.full_name);
       setTimeout(() => setAssignStatus(""), 3000);
     } else {
-      setAssignStatus(`Error: ${error.message}`);
+      const errMsg = workoutRes.error?.message || suggestionRes.error?.message || "Unknown error";
+      setAssignStatus(`Error: ${errMsg}`);
     }
   }
 
