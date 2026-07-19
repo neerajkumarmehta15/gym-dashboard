@@ -14,21 +14,13 @@ export default function AthleteLogin() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
-      // Check custom direct session first
-      if (typeof window !== 'undefined' && localStorage.getItem('athlete_logged_id')) {
-        router.push('/athlete/dashboard');
-        return;
+    const clearSession = async () => {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('athlete_logged_id');
       }
-      
-      // Fallback: Check Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/athlete/dashboard');
-      }
+      await supabase.auth.signOut();
     };
-    checkSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    clearSession();
   }, []);
 
   async function handleDirectLogin(e: React.FormEvent) {

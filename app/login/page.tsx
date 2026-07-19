@@ -14,14 +14,14 @@ export default function LoginScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/');
+    const clearSession = async () => {
+      await supabase.auth.signOut();
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('owner_session_active');
+        sessionStorage.removeItem('owner_refresh_count');
       }
     };
-    checkSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    clearSession();
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
