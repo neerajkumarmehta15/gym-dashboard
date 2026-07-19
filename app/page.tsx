@@ -254,17 +254,13 @@ export default function MasterSequence() {
 
   useEffect(() => { 
     let isMounted = true;
-    let hasLoaded = false;
 
     // 1. Initial check from storage
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted) {
         if (session) {
-          if (!hasLoaded) {
-            hasLoaded = true;
-            initializeEngine(session);
-          }
+          initializeEngine(session);
         } else {
           setAuthStatus('guest');
         }
@@ -277,13 +273,11 @@ export default function MasterSequence() {
       if (!isMounted) return;
 
       if (session) {
-        if (!hasLoaded) {
-          hasLoaded = true;
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           initializeEngine(session);
         }
       } else {
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
-          hasLoaded = false;
+        if (event === 'SIGNED_OUT') {
           setAuthStatus('guest');
         }
       }
