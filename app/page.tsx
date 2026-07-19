@@ -648,7 +648,16 @@ export default function MasterSequence() {
   // --- Search Filter Logic ---
   const filteredMembers = members.filter(m => {
     const matchesSearch = m.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || m.phone_number.includes(searchQuery);
-    const matchesStatus = statusFilter === 'all' ? true : m.status === statusFilter;
+    
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      matchesStatus = m.status === 'active';
+    } else if (statusFilter === 'expired') {
+      matchesStatus = m.status === 'expired';
+    } else if (statusFilter === 'expiring_soon') {
+      matchesStatus = (m.days_left || 0) > 0 && (m.days_left || 0) <= 7;
+    }
+    
     return matchesSearch && matchesStatus;
   });
 
@@ -793,11 +802,58 @@ export default function MasterSequence() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-5 mb-8 relative z-10">
-        <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl"><AlertCircle /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expired</p><h3 className="text-2xl font-black">{expiredMembers.length}</h3></div></div>
-        <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl"><Clock /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expiring Soon</p><h3 className="text-2xl font-black">{expiringSoonMembers.length}</h3></div></div>
-        <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-volt/10 text-brand-volt rounded-xl"><CheckCircle /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Active</p><h3 className="text-2xl font-black">{activeMembers.length}</h3></div></div>
-        <div className="glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4"><div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div><div><p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p><h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3></div></div>
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-5 mb-8 relative z-10 select-none">
+        {/* Expired Metric Card */}
+        <div 
+          onClick={() => setStatusFilter('expired')}
+          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'expired' ? 'ring-2 ring-rose-500 bg-rose-500/5' : ''}`}
+          title="Filter Expired Members"
+        >
+          <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl"><AlertCircle /></div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expired</p>
+            <h3 className="text-2xl font-black">{expiredMembers.length}</h3>
+          </div>
+        </div>
+
+        {/* Expiring Soon Metric Card */}
+        <div 
+          onClick={() => setStatusFilter('expiring_soon')}
+          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'expiring_soon' ? 'ring-2 ring-brand-orange bg-brand-orange/5' : ''}`}
+          title="Filter Expiring Soon Members"
+        >
+          <div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl"><Clock /></div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expiring Soon</p>
+            <h3 className="text-2xl font-black">{expiringSoonMembers.length}</h3>
+          </div>
+        </div>
+
+        {/* Active Metric Card */}
+        <div 
+          onClick={() => setStatusFilter('active')}
+          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'active' ? 'ring-2 ring-brand-volt bg-brand-volt/5' : ''}`}
+          title="Filter Active Members"
+        >
+          <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-xl"><CheckCircle /></div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Active</p>
+            <h3 className="text-2xl font-black">{activeMembers.length}</h3>
+          </div>
+        </div>
+
+        {/* Total Revenue Metric Card (reloads all) */}
+        <div 
+          onClick={() => setStatusFilter('all')}
+          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'all' ? 'ring-2 ring-brand-cyan bg-brand-cyan/5' : ''}`}
+          title="Filter All Members"
+        >
+          <div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p>
+            <h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3>
+          </div>
+        </div>
       </div>
 
 
@@ -807,9 +863,25 @@ export default function MasterSequence() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input type="text" placeholder="Search athletes by name or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-brand-dark/50 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-volt/40 transition-all font-sans" />
         </div>
-        <div className="flex gap-2">
-          {['all', 'active', 'expired'].map(status => (
-            <button key={status} onClick={() => setStatusFilter(status)} className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all border ${statusFilter === status ? 'bg-brand-cyan/20 border-brand-cyan/40 text-brand-cyan' : 'bg-slate-900/40 border-slate-800/80 text-slate-400 hover:bg-slate-800'}`}>{status}</button>
+        <div className="flex gap-2 flex-wrap">
+          {['all', 'active', 'expired', 'expiring_soon'].map(status => (
+            <button 
+              key={status} 
+              onClick={() => setStatusFilter(status)} 
+              className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all border ${
+                statusFilter === status 
+                  ? status === 'expiring_soon'
+                    ? 'bg-brand-orange/20 border-brand-orange/40 text-brand-orange'
+                    : status === 'active'
+                      ? 'bg-brand-volt/20 border-brand-volt/40 text-brand-volt'
+                      : status === 'expired'
+                        ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                        : 'bg-brand-cyan/20 border-brand-cyan/40 text-brand-cyan'
+                  : 'bg-slate-900/40 border-slate-800/80 text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              {status.replace('_', ' ')}
+            </button>
           ))}
         </div>
       </div>
