@@ -176,30 +176,34 @@ export default function MasterSequence() {
     // Check if the logged-in user is an athlete
     const userEmail = session.user.email || '';
     const userFullName = session.user.user_metadata?.full_name || '';
-    let isAthlete = false;
 
-    try {
-      const { data: hasEmail } = await supabase
-        .from('members')
-        .select('id')
-        .eq('email', userEmail)
-        .maybeSingle();
-      
-      if (hasEmail) {
-        isAthlete = true;
-      } else if (userFullName) {
-        const { data: hasName } = await supabase
-          .from('members')
-          .select('id')
-          .eq('full_name', userFullName)
-          .maybeSingle();
-        if (hasName) {
-          isAthlete = true;
-        }
+    // Parallelize the athlete check and the owner metrics/CRM data fetch to eliminate sequential network waterfall.
+    const checkAthletePromise = (async () => {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') === 'true') {
+        return false;
       }
-    } catch {
-      // Table check failed
-    }
+      try {
+        const [emailRes, nameRes] = await Promise.all([
+          userEmail ? supabase.from('members').select('id').eq('email', userEmail).maybeSingle() : Promise.resolve({ data: null }),
+          userFullName ? supabase.from('members').select('id').eq('full_name', userFullName).maybeSingle() : Promise.resolve({ data: null })
+        ]);
+        return !!(emailRes?.data || nameRes?.data);
+      } catch {
+        return false;
+      }
+    })();
+
+    const [
+      isAthlete,
+      memberDataRes,
+      subDetailsRes,
+      planDataRes
+    ] = await Promise.all([
+      checkAthletePromise,
+      supabase.from('members').select('*').order('joined_date', { ascending: false }),
+      supabase.from('subscriptions').select('*'),
+      supabase.from('membership_plans').select('*').order('price', { ascending: true })
+    ]);
 
     if (isAthlete) {
       router.push('/athlete/dashboard');
@@ -208,8 +212,9 @@ export default function MasterSequence() {
     
     setAuthStatus('owner');
 
-    const { data: memberData } = await supabase.from('members').select('*').order('joined_date', { ascending: false });
-    const { data: subDetails } = await supabase.from('subscriptions').select('*');
+    const memberData = memberDataRes?.data;
+    const subDetails = subDetailsRes?.data;
+    const planData = planDataRes?.data;
 
     if (memberData) {
       const membersWithSubs = memberData.map((m: MemberData) => {
@@ -238,7 +243,6 @@ export default function MasterSequence() {
       triggerAutomaticExpiryAlerts(membersWithSubs);
     }
 
-    const { data: planData } = await supabase.from('membership_plans').select('*').order('price', { ascending: true });
     if (planData) {
       setPlans(planData);
       if (planData.length > 0 && !selectedPlanId) {
@@ -247,13 +251,11 @@ export default function MasterSequence() {
       }
     }
 
-    const { data: subData } = await supabase.from('subscriptions').select('amount_paid');
-    if (subData) {
-      const revenue = subData.reduce((sum, sub) => sum + Number(sub.amount_paid), 0);
+    if (subDetails) {
+      // Calculate revenue directly from the fetched subscriptions details to save another database query
+      const revenue = subDetails.reduce((sum, sub) => sum + Number(sub.amount_paid || 0), 0);
       setTotalRevenue(revenue);
     }
-
-
     
     setIsSyncing(false);
   }
