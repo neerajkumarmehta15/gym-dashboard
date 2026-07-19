@@ -80,6 +80,24 @@ const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
   };
 };
 
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'N/A';
+  try {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  } catch {
+    return dateStr;
+  }
+};
+
 export default function MasterSequence() {
   const router = useRouter();
   
@@ -150,7 +168,7 @@ export default function MasterSequence() {
       
       // If we haven't sent an alert to this member today, send it automatically!
       if (lastSentDate !== todayStr) {
-        const message = `Hi ${member.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${member.days_left} days on ${member.end_date}. Please renew soon to continue your training without interruptions! Thank you.`;
+        const message = `Hi ${member.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${member.days_left} days on ${formatDate(member.end_date)}. Please renew soon to continue your training without interruptions! Thank you.`;
         
         try {
           const res = await fetch('/api/send-sms', {
@@ -571,7 +589,7 @@ export default function MasterSequence() {
     if (error) {
       alert(`Error logging subscription: ${error.message}`);
     } else {
-      alert(`Subscription logged successfully starting from ${startDateStr} to ${endDate.toISOString().split('T')[0]}!`);
+      alert(`Subscription logged successfully starting from ${formatDate(startDateStr)} to ${formatDate(endDate.toISOString().split('T')[0])}!`);
     }
 
     setIsSubmitting(false);
@@ -918,7 +936,7 @@ export default function MasterSequence() {
                       <div className="text-[11px] text-gray-400 font-mono space-y-0.5">
                         <p>{member.phone_number} • {member.email || 'No Email'}</p>
                         <p className="text-[10px] text-gray-500">
-                          Active: <span className="text-gray-300 font-bold">{member.start_date}</span> ➔ Expiry: <span className="text-gray-300 font-bold">{member.end_date || 'N/A'}</span>
+                          Active: <span className="text-gray-300 font-bold">{formatDate(member.start_date)}</span> ➔ Expiry: <span className="text-gray-300 font-bold">{formatDate(member.end_date)}</span>
                         </p>
                       </div>
                     </div>
@@ -1128,14 +1146,14 @@ export default function MasterSequence() {
             <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl mb-5 space-y-2">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono font-bold">Message Preview</p>
               <p className="text-xs text-gray-300 font-sans italic leading-relaxed">
-                &quot;Hi {alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in {alertMember.days_left} days on {alertMember.end_date}. Please renew soon to continue your training without interruptions! Thank you.&quot;
+                &quot;Hi {alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in {alertMember.days_left} days on {formatDate(alertMember.end_date)}. Please renew soon to continue your training without interruptions! Thank you.&quot;
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => {
-                  const message = encodeURIComponent(`Hi ${alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${alertMember.days_left} days on ${alertMember.end_date}. Please renew soon to continue your training without interruptions! Thank you.`);
+                  const message = encodeURIComponent(`Hi ${alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${alertMember.days_left} days on ${formatDate(alertMember.end_date)}. Please renew soon to continue your training without interruptions! Thank you.`);
                   const phone = alertMember.phone_number.replace(/\D/g, '');
                   const cleanPhone = phone.length === 10 ? `91${phone}` : phone;
                   window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
@@ -1149,7 +1167,7 @@ export default function MasterSequence() {
 
               <button
                 onClick={() => {
-                  const message = encodeURIComponent(`Hi ${alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${alertMember.days_left} days on ${alertMember.end_date}. Please renew soon to continue your training without interruptions! Thank you.`);
+                  const message = encodeURIComponent(`Hi ${alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${alertMember.days_left} days on ${formatDate(alertMember.end_date)}. Please renew soon to continue your training without interruptions! Thank you.`);
                   window.open(`sms:${alertMember.phone_number}?body=${message}`, '_self');
                   setIsAlertModalOpen(false);
                   setAlertMember(null);

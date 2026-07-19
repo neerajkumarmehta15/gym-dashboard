@@ -68,6 +68,24 @@ const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
   };
 };
 
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'N/A';
+  try {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  } catch {
+    return dateStr;
+  }
+};
+
 export default function AthleteDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -763,13 +781,13 @@ export default function AthleteDashboard() {
               
               {/* Membership & Subscription details */}
               <div className="text-[11px] text-slate-450 font-mono mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 bg-brand-dark/40 border border-gray-900 px-3 py-1.5 rounded-lg select-none text-left">
-                <span>Joined: <span className="text-slate-200 font-semibold">{profile.joined_date}</span></span>
+                <span>Joined: <span className="text-slate-200 font-semibold">{formatDate(profile.joined_date)}</span></span>
                 <span className="text-gray-700">•</span>
                 {subscription ? (
                   <>
                     <span>Plan: <span className="text-brand-volt font-semibold">{subscription.planName}</span></span>
                     <span className="text-gray-700">•</span>
-                    <span>Expires: <span className={`${subscription.daysLeft <= 3 ? 'text-brand-orange font-bold' : 'text-slate-200 font-semibold'}`}>{subscription.endDate} <span className="text-[10px] text-gray-500">({subscription.daysLeft} days left)</span></span></span>
+                    <span>Expires: <span className={`${subscription.daysLeft <= 3 ? 'text-brand-orange font-bold' : 'text-slate-200 font-semibold'}`}>{formatDate(subscription.endDate)} <span className="text-[10px] text-gray-500">({subscription.daysLeft} days left)</span></span></span>
                   </>
                 ) : (
                   <span>Plan: <span className="text-rose-400 font-semibold">No Active Subscription</span></span>
