@@ -101,6 +101,8 @@ export default function MasterSequence() {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [hasPanned, setHasPanned] = useState(false);
 
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
@@ -303,6 +305,24 @@ export default function MasterSequence() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Click outside listener to close active dropdown menu
+  useEffect(() => {
+    if (activeMenuMemberId === null) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.options-menu-btn') || target.closest('.options-menu-dropdown')) {
+        return;
+      }
+      setActiveMenuMemberId(null);
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeMenuMemberId]);
+
   // --- Photo Preview Zoom & Pan Handlers ---
   const handleZoomIn = () => {
     setZoomScale(prev => Math.min(prev + 0.5, 4));
@@ -333,10 +353,17 @@ export default function MasterSequence() {
     if (zoomScale <= 1) return;
     setIsPanning(true);
     setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    setDragStartPos({ x: e.clientX, y: e.clientY });
+    setHasPanned(false);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isPanning) return;
+    const dx = e.clientX - dragStartPos.x;
+    const dy = e.clientY - dragStartPos.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      setHasPanned(true);
+    }
     setPanOffset({
       x: e.clientX - panStart.x,
       y: e.clientY - panStart.y
@@ -345,6 +372,11 @@ export default function MasterSequence() {
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    if (hasPanned) {
+      setTimeout(() => {
+        setHasPanned(false);
+      }, 50);
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -354,14 +386,26 @@ export default function MasterSequence() {
       x: e.touches[0].clientX - panOffset.x, 
       y: e.touches[0].clientY - panOffset.y 
     });
+    setDragStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    setHasPanned(false);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isPanning || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - dragStartPos.x;
+    const dy = e.touches[0].clientY - dragStartPos.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      setHasPanned(true);
+    }
     setPanOffset({
       x: e.touches[0].clientX - panStart.x,
       y: e.touches[0].clientY - panStart.y
     });
+  };
+
+  const handlePhotoClick = () => {
+    if (hasPanned) return;
+    closePhotoPreview();
   };
 
   async function toggleMemberStatus(id: string, currentStatus: string) {
@@ -934,14 +978,14 @@ export default function MasterSequence() {
                   <div className="relative">
                     <button 
                       onClick={() => setActiveMenuMemberId(activeMenuMemberId === member.id ? null : member.id)} 
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors options-menu-btn"
                       title="Manage Athlete"
                     >
                       <MoreVertical className="w-4 h-4" />
                     </button>
                     
                     {activeMenuMemberId === member.id && (
-                      <div className="absolute right-0 top-10 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 py-1.5 font-sans">
+                      <div className="absolute right-0 top-10 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 py-1.5 font-sans options-menu-dropdown">
                         <button 
                           onClick={() => {
                             setActiveMenuMemberId(null);
@@ -1279,11 +1323,21 @@ export default function MasterSequence() {
 
       {/* --- PHOTO PREVIEW & ZOOM MODAL --- */}
       {previewPhotoUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none">
-          {/* Close Area */}
-          <div className="absolute inset-0 cursor-zoom-out" onClick={closePhotoPreview}></div>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none cursor-zoom-out"
+          onClick={handlePhotoClick}
+        >
           
-          <div className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center justify-center z-10">
+          <div 
+            className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center justify-center z-10"
+            onClick={(e) => {
+              // Stop propagation only for the Action Bar buttons
+              const target = e.target as HTMLElement;
+              if (target.closest('.action-bar-btn') || target.closest('.action-bar')) {
+                e.stopPropagation();
+              }
+            }}
+          >
             {/* Header with Title & Close Icon */}
             <div className="absolute top-[-48px] left-0 right-0 flex justify-between items-center text-white px-2">
               <span className="text-sm font-bold tracking-wider uppercase text-slate-300">{previewPhotoName}</span>
@@ -1320,11 +1374,11 @@ export default function MasterSequence() {
             </div>
 
             {/* Zoom / Pan Action Bar */}
-            <div className="absolute bottom-[-56px] flex items-center gap-4 bg-slate-900/80 border border-slate-800 rounded-2xl px-5 py-2.5 shadow-xl">
+            <div className="absolute bottom-[-56px] flex items-center gap-4 bg-slate-900/80 border border-slate-800 rounded-2xl px-5 py-2.5 shadow-xl action-bar">
               <button 
                 onClick={handleZoomOut} 
                 disabled={zoomScale <= 1}
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg"
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
                 title="Zoom Out"
               >
                 ➖
@@ -1335,7 +1389,7 @@ export default function MasterSequence() {
               <button 
                 onClick={handleZoomIn} 
                 disabled={zoomScale >= 4}
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg"
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
                 title="Zoom In"
               >
                 ➕
@@ -1343,7 +1397,7 @@ export default function MasterSequence() {
               <div className="w-[1px] h-4 bg-slate-800"></div>
               <button 
                 onClick={handleZoomReset} 
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-brand-orange transition-all cursor-pointer px-2.5 py-1.5 hover:bg-slate-800 rounded-lg"
+                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-brand-orange transition-all cursor-pointer px-2.5 py-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
               >
                 Reset
               </button>
