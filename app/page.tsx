@@ -46,25 +46,35 @@ interface SubscriptionData {
 }
 
 const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
+  let isCoach = false;
+  let rawName = exerciseName;
+
+  if (rawName.endsWith(" [Coach]")) {
+    isCoach = true;
+    rawName = rawName.substring(0, rawName.length - 8);
+  }
+
   const suffixRegex = /\s*\(([^)]+)\)$/;
-  const match = exerciseName.match(suffixRegex);
+  const match = rawName.match(suffixRegex);
   
   if (match) {
     const rawSuffix = match[1];
     const displayWeight = rawSuffix.toLowerCase().endsWith("kg") 
       ? rawSuffix 
       : `${rawSuffix} kg`;
-    const cleanName = exerciseName.replace(suffixRegex, "");
+    const cleanName = rawName.replace(suffixRegex, "");
     
     return {
       name: cleanName,
-      weight: displayWeight
+      weight: displayWeight,
+      isCoach
     };
   }
   
   return {
-    name: exerciseName,
-    weight: `${weightKg} kg`
+    name: rawName,
+    weight: `${weightKg} kg`,
+    isCoach
   };
 };
 
@@ -743,6 +753,9 @@ export default function MasterSequence() {
       finalWeight = match ? parseFloat(match[0]) : 0;
       finalExName = `${assignEx}${suffix}`;
     }
+
+    // Since this is assigned by the owner/coach, append " [Coach]" tag to the exercise_name
+    finalExName = `${finalExName} [Coach]`;
 
     // Insert the workout AND update the suggestion concurrently!
     const [workoutRes, suggestionRes] = await Promise.all([
@@ -1576,7 +1589,14 @@ export default function MasterSequence() {
                       return (
                         <div key={workout.id} className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-700">
                           <div>
-                            <span className="font-bold text-slate-200 block">{display.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-200 block">{display.name}</span>
+                              {display.isCoach ? (
+                                <span className="text-[9px] bg-brand-orange/20 text-brand-orange border border-brand-orange/30 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider">Coach</span>
+                              ) : (
+                                <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider">Self</span>
+                              )}
+                            </div>
                             <span className="text-slate-400 text-sm">{workout.sets} sets × {workout.reps} reps @ {display.weight}</span>
                           </div>
                           <button onClick={() => handleDeleteWorkout(workout.id)} className="text-rose-500 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-800 transition-colors"><Trash2 className="w-4 h-4"/></button>

@@ -27,25 +27,35 @@ interface Workout {
 }
 
 const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
+  let isCoach = false;
+  let rawName = exerciseName;
+
+  if (rawName.endsWith(" [Coach]")) {
+    isCoach = true;
+    rawName = rawName.substring(0, rawName.length - 8);
+  }
+
   const suffixRegex = /\s*\(([^)]+)\)$/;
-  const match = exerciseName.match(suffixRegex);
+  const match = rawName.match(suffixRegex);
   
   if (match) {
     const rawSuffix = match[1];
     const displayWeight = rawSuffix.toLowerCase().endsWith("kg") 
       ? rawSuffix 
       : `${rawSuffix} kg`;
-    const cleanName = exerciseName.replace(suffixRegex, "");
+    const cleanName = rawName.replace(suffixRegex, "");
     
     return {
       name: cleanName,
-      weight: displayWeight
+      weight: displayWeight,
+      isCoach
     };
   }
   
   return {
-    name: exerciseName,
-    weight: `${weightKg} kg`
+    name: rawName,
+    weight: `${weightKg} kg`,
+    isCoach
   };
 };
 
@@ -485,7 +495,14 @@ export default function AthleteDashboard() {
                     {workoutDisplays.map((workout) => (
                       <div key={workout.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center hover:border-gray-800 transition-colors">
                         <div>
-                          <span className="font-extrabold text-white block tracking-tight">{workout.display.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-white block tracking-tight">{workout.display.name}</span>
+                            {workout.display.isCoach ? (
+                              <span className="text-[10px] bg-brand-orange/20 text-brand-orange border border-brand-orange/30 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider">Coach</span>
+                            ) : (
+                              <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider">Self</span>
+                            )}
+                          </div>
                           <span className="text-gray-400 text-xs font-mono mt-0.5 block">{workout.sets} sets × {workout.reps} reps</span>
                         </div>
                         <div className="flex items-center gap-3">
