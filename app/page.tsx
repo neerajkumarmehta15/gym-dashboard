@@ -45,6 +45,29 @@ interface SubscriptionData {
   end_date: string;
 }
 
+const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
+  const suffixRegex = /\s*\(([^)]+)\)$/;
+  const match = exerciseName.match(suffixRegex);
+  
+  if (match) {
+    const rawSuffix = match[1];
+    const displayWeight = rawSuffix.toLowerCase().endsWith("kg") 
+      ? rawSuffix 
+      : `${rawSuffix} kg`;
+    const cleanName = exerciseName.replace(suffixRegex, "");
+    
+    return {
+      name: cleanName,
+      weight: displayWeight
+    };
+  }
+  
+  return {
+    name: exerciseName,
+    weight: `${weightKg} kg`
+  };
+};
+
 export default function MasterSequence() {
   const router = useRouter();
   
@@ -1535,15 +1558,18 @@ export default function MasterSequence() {
                   {athleteWorkouts.length === 0 ? (
                     <p className="text-slate-500 text-center py-8">No workout data found for this athlete.</p>
                   ) : (
-                    athleteWorkouts.map((workout) => (
-                      <div key={workout.id} className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-700">
-                        <div>
-                          <span className="font-bold text-slate-200 block">{workout.exercise_name}</span>
-                          <span className="text-slate-400 text-sm">{workout.sets} sets × {workout.reps} reps @ {workout.weight_kg}kg</span>
+                    athleteWorkouts.map((workout) => {
+                      const display = getWorkoutDisplay(workout.exercise_name, workout.weight_kg);
+                      return (
+                        <div key={workout.id} className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-700">
+                          <div>
+                            <span className="font-bold text-slate-200 block">{display.name}</span>
+                            <span className="text-slate-400 text-sm">{workout.sets} sets × {workout.reps} reps @ {display.weight}</span>
+                          </div>
+                          <button onClick={() => handleDeleteWorkout(workout.id)} className="text-rose-500 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-800 transition-colors"><Trash2 className="w-4 h-4"/></button>
                         </div>
-                        <button onClick={() => handleDeleteWorkout(workout.id)} className="text-rose-500 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-800 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

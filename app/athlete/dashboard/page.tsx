@@ -26,6 +26,29 @@ interface Workout {
   created_at?: string;
 }
 
+const getWorkoutDisplay = (exerciseName: string, weightKg: number) => {
+  const suffixRegex = /\s*\(([^)]+)\)$/;
+  const match = exerciseName.match(suffixRegex);
+  
+  if (match) {
+    const rawSuffix = match[1];
+    const displayWeight = rawSuffix.toLowerCase().endsWith("kg") 
+      ? rawSuffix 
+      : `${rawSuffix} kg`;
+    const cleanName = exerciseName.replace(suffixRegex, "");
+    
+    return {
+      name: cleanName,
+      weight: displayWeight
+    };
+  }
+  
+  return {
+    name: exerciseName,
+    weight: `${weightKg} kg`
+  };
+};
+
 export default function AthleteDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -372,14 +395,20 @@ export default function AthleteDashboard() {
     );
   }
 
+  // Get workout displays mapping
+  const workoutDisplays = recentWorkouts.map(w => ({
+    ...w,
+    display: getWorkoutDisplay(w.exercise_name, w.weight_kg)
+  }));
+
   // Filter progression chart by the selected exercise, and use formatted date for X-axis labels
-  const uniqueExercises = Array.from(new Set(recentWorkouts.map(w => w.exercise_name)));
+  const uniqueExercises = Array.from(new Set(workoutDisplays.map(w => w.display.name)));
   const filteredChartWorkouts = selectedExerciseFilter === 'All' 
-    ? recentWorkouts 
-    : recentWorkouts.filter(w => w.exercise_name === selectedExerciseFilter);
+    ? workoutDisplays 
+    : workoutDisplays.filter(w => w.display.name === selectedExerciseFilter);
 
   const chartData = [...filteredChartWorkouts].reverse().map(w => ({
-    name: w.created_at ? new Date(w.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : w.exercise_name.substring(0, 8),
+    name: w.created_at ? new Date(w.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : w.display.name.substring(0, 8),
     Weight: w.weight_kg
   }));
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
@@ -453,14 +482,14 @@ export default function AthleteDashboard() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {recentWorkouts.map((workout) => (
+                    {workoutDisplays.map((workout) => (
                       <div key={workout.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center hover:border-gray-800 transition-colors">
                         <div>
-                          <span className="font-extrabold text-white block tracking-tight">{workout.exercise_name}</span>
+                          <span className="font-extrabold text-white block tracking-tight">{workout.display.name}</span>
                           <span className="text-gray-400 text-xs font-mono mt-0.5 block">{workout.sets} sets × {workout.reps} reps</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-brand-volt font-mono font-bold text-sm bg-brand-volt/5 px-2.5 py-1 rounded-lg border border-brand-volt/10">{workout.weight_kg} kg</span>
+                          <span className="text-brand-volt font-mono font-bold text-sm bg-brand-volt/5 px-2.5 py-1 rounded-lg border border-brand-volt/10">{workout.display.weight}</span>
                           <button 
                             onClick={() => handleDeleteWorkout(workout.id)} 
                             className="p-1 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-slate-900 transition-all"
