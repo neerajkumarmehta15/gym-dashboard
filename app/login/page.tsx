@@ -21,6 +21,7 @@ export default function LoginScreen() {
       }
     };
     checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleLogin(e: React.FormEvent) {

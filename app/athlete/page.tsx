@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
-import { Mail, ArrowRight, Lock, KeyRound, UserPlus, ArrowLeft } from 'lucide-react';
+import { ArrowRight, Lock, UserPlus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AthleteLogin() {
@@ -24,6 +24,7 @@ export default function AthleteLogin() {
       }
     };
     checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSignIn(e: React.FormEvent) {
@@ -78,7 +79,7 @@ export default function AthleteLogin() {
     }
 
     // 2. Automatically register the athlete in the 'members' table
-    let insertData: any = {
+    const insertData = {
       full_name: fullName,
       status: 'active',
       joined_date: new Date().toISOString().split('T')[0]

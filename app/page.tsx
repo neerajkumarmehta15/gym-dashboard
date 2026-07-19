@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
-import Link from "next/link";
 
 interface MemberData {
   id: string;
@@ -34,6 +33,12 @@ interface Workout {
   reps: number;
   weight_kg: number;
   member_name: string;
+}
+
+interface SubscriptionData {
+  member_id: string;
+  start_date: string;
+  end_date: string;
 }
 
 export default function MasterSequence() {
@@ -98,6 +103,53 @@ export default function MasterSequence() {
   const [assignStatus, setAssignStatus] = useState("");
 
   // ==========================================
+  // AUTOMATIC EXPIRY ALERTS MATRIX
+  // ==========================================
+  async function triggerAutomaticExpiryAlerts(membersList: MemberData[]) {
+    if (typeof window === 'undefined') return;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sentReminders = JSON.parse(localStorage.getItem('gymnation_sent_reminders') || '{}');
+    let hasSentAny = false;
+
+    // Filter members expiring in 7 days or fewer (and not expired)
+    const expiringSoon = membersList.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 7);
+
+    for (const member of expiringSoon) {
+      const lastSentDate = sentReminders[member.id];
+      
+      // If we haven't sent an alert to this member today, send it automatically!
+      if (lastSentDate !== todayStr) {
+        const message = `Hi ${member.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${member.days_left} days on ${member.end_date}. Please renew soon to continue your training without interruptions! Thank you.`;
+        
+        try {
+          const res = await fetch('/api/send-sms', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              to: member.phone_number,
+              message: message
+            })
+          });
+          
+          if (res.ok) {
+            sentReminders[member.id] = todayStr;
+            hasSentAny = true;
+          }
+        } catch (e) {
+          console.error(`Failed to send automated SMS to ${member.full_name}:`, e);
+        }
+      }
+    }
+
+    if (hasSentAny) {
+      localStorage.setItem('gymnation_sent_reminders', JSON.stringify(sentReminders));
+    }
+  }
+
+  // ==========================================
   // INITIALIZE ENGINE
   // ==========================================
   async function initializeEngine() {
@@ -134,7 +186,7 @@ export default function MasterSequence() {
           isAthlete = true;
         }
       }
-    } catch (e) {
+    } catch {
       // Table check failed
     }
 
@@ -149,11 +201,11 @@ export default function MasterSequence() {
     const { data: subDetails } = await supabase.from('subscriptions').select('*');
 
     if (memberData) {
-      const membersWithSubs = memberData.map((m: any) => {
-        const mSubs = subDetails ? subDetails.filter((s: any) => s.member_id === m.id) : [];
-        let latestSub = null;
+      const membersWithSubs = memberData.map((m: MemberData) => {
+        const mSubs = subDetails ? subDetails.filter((s: SubscriptionData) => s.member_id === m.id) : [];
+        let latestSub: SubscriptionData | null = null;
         if (mSubs.length > 0) {
-          latestSub = mSubs.reduce((prev: any, current: any) => {
+          latestSub = mSubs.reduce((prev: SubscriptionData, current: SubscriptionData) => {
             return (new Date(prev.end_date) > new Date(current.end_date)) ? prev : current;
           });
         }
@@ -196,7 +248,11 @@ export default function MasterSequence() {
   }
 
   useEffect(() => { 
-    initializeEngine(); 
+    const timer = setTimeout(() => {
+      initializeEngine();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function toggleMemberStatus(id: string, currentStatus: string) {
@@ -254,7 +310,8 @@ export default function MasterSequence() {
         })
         .eq('id', editMemberId);
       updateError = error;
-    } catch (err) {}
+    } catch {
+    }
 
     if (updateError) {
       try {
@@ -268,7 +325,7 @@ export default function MasterSequence() {
           })
           .eq('id', editMemberId);
         updateError = error;
-      } catch (err) {}
+      } catch {}
     }
 
     if (updateError) {
@@ -282,7 +339,7 @@ export default function MasterSequence() {
           })
           .eq('id', editMemberId);
         updateError = error;
-      } catch (err) {}
+      } catch {}
     }
 
     if (updateError) {
@@ -332,50 +389,6 @@ export default function MasterSequence() {
   function triggerExpiryAlert(member: MemberData) {
     setAlertMember(member);
     setIsAlertModalOpen(true);
-  }
-
-  async function triggerAutomaticExpiryAlerts(membersList: MemberData[]) {
-    if (typeof window === 'undefined') return;
-    
-    const todayStr = new Date().toISOString().split('T')[0];
-    const sentReminders = JSON.parse(localStorage.getItem('gymnation_sent_reminders') || '{}');
-    let hasSentAny = false;
-
-    // Filter members expiring in 7 days or fewer (and not expired)
-    const expiringSoon = membersList.filter(m => (m.days_left || 0) > 0 && (m.days_left || 0) <= 7);
-
-    for (const member of expiringSoon) {
-      const lastSentDate = sentReminders[member.id];
-      
-      // If we haven't sent an alert to this member today, send it automatically!
-      if (lastSentDate !== todayStr) {
-        const message = `Hi ${member.full_name}, this is a reminder that your GYMNATION subscription is expiring in ${member.days_left} days on ${member.end_date}. Please renew soon to continue your training without interruptions! Thank you.`;
-        
-        try {
-          const res = await fetch('/api/send-sms', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              to: member.phone_number,
-              message: message
-            })
-          });
-          
-          if (res.ok) {
-            sentReminders[member.id] = todayStr;
-            hasSentAny = true;
-          }
-        } catch (e) {
-          console.error(`Failed to send automated SMS to ${member.full_name}:`, e);
-        }
-      }
-    }
-
-    if (hasSentAny) {
-      localStorage.setItem('gymnation_sent_reminders', JSON.stringify(sentReminders));
-    }
   }
 
   async function handleAddSubscription(e: React.FormEvent) {
@@ -435,14 +448,14 @@ export default function MasterSequence() {
     const selectedPlan = plans.find(p => p.id === Number(selectedPlanId));
     if (!selectedPlan) return setIsSubmitting(false);
 
-    let insertData: any = {
+    const insertData = {
       full_name: fullName,
       phone_number: phoneNumber,
       status: 'active'
     };
 
-    let newMember: any = null;
-    let memberError: any = null;
+    let newMember: MemberData | null = null;
+    let memberError: { message: string } | null = null;
 
     // Try full insert with email, gender, photo
     try {
@@ -452,7 +465,7 @@ export default function MasterSequence() {
         .select().single();
       newMember = data;
       memberError = error;
-    } catch (err) {}
+    } catch {}
 
     // Fallback 1: retry without photo
     if (memberError || !newMember) {
@@ -463,7 +476,7 @@ export default function MasterSequence() {
           .select().single();
         newMember = data;
         memberError = error;
-      } catch (err) {}
+      } catch {}
     }
 
     // Fallback 2: retry without gender/photo
@@ -475,7 +488,7 @@ export default function MasterSequence() {
           .select().single();
         newMember = data;
         memberError = error;
-      } catch (err) {}
+      } catch {}
     }
 
     // Fallback 3: retry with core fields only
@@ -488,22 +501,20 @@ export default function MasterSequence() {
       memberError = error;
     }
 
-    if (memberError) {
-      alert(`Error: ${memberError.message}`);
+    if (memberError || !newMember) {
+      alert(`Error: ${memberError?.message || 'Failed to create member'}`);
       return setIsSubmitting(false);
     }
 
     // Cache gender and photo in localStorage
-    if (newMember) {
-      if (photoBase64) {
-        const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
-        localPhotos[newMember.id] = photoBase64;
-        localStorage.setItem('gymnation_member_photos', JSON.stringify(localPhotos));
-      }
-      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-      localGenders[newMember.id] = gender;
-      localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
+    if (photoBase64) {
+      const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+      localPhotos[newMember.id] = photoBase64;
+      localStorage.setItem('gymnation_member_photos', JSON.stringify(localPhotos));
     }
+    const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+    localGenders[newMember.id] = gender;
+    localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
 
     const startDate = new Date(joiningDate);
     const endDate = new Date(joiningDate);
@@ -665,6 +676,7 @@ export default function MasterSequence() {
                     {/* Avatar Container */}
                     <div className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''}`}>
                       {resolvedPhoto ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={resolvedPhoto} alt={member.full_name} />
                       ) : resolvedGender === 'Female' ? (
                         <svg className="w-8 h-8 text-brand-orange/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -687,7 +699,7 @@ export default function MasterSequence() {
                         <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-gray-400 font-mono uppercase">{resolvedGender}</span>
                         {member.end_date && (
                           <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono uppercase ${
-                            (member.days_left || 0) > 15 
+                            (member.days_left || 0) > 7 
                               ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' 
                               : (member.days_left || 0) > 0 
                                 ? 'bg-brand-orange/10 text-brand-orange border border-brand-orange/20' 
@@ -981,7 +993,7 @@ export default function MasterSequence() {
             <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl mb-5 space-y-2">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono font-bold">Message Preview</p>
               <p className="text-xs text-gray-300 font-sans italic leading-relaxed">
-                "Hi {alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in {alertMember.days_left} days on {alertMember.end_date}. Please renew soon to continue your training without interruptions! Thank you."
+                &quot;Hi {alertMember.full_name}, this is a reminder that your GYMNATION subscription is expiring in {alertMember.days_left} days on {alertMember.end_date}. Please renew soon to continue your training without interruptions! Thank you.&quot;
               </p>
             </div>
 
@@ -1023,7 +1035,7 @@ export default function MasterSequence() {
             <button onClick={() => setSelectedAthlete(null)} className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"><X className="w-6 h-6" /></button>
             
             <div className="mb-8 border-b border-slate-800 pb-4">
-              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 uppercase tracking-wide">{selectedAthlete.full_name}'s Dossier</h2>
+              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 uppercase tracking-wide">{selectedAthlete.full_name}&apos;s Dossier</h2>
               <p className="text-slate-400 text-sm uppercase tracking-widest mt-1">Live Progress & Assignment Routing</p>
             </div>
 

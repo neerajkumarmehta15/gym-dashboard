@@ -74,7 +74,8 @@ export async function POST(req: Request) {
       note: 'SMS Simulated. Add TWILIO_ACCOUNT_SID or FAST2SMS_API_KEY in environment variables to send real SMS.' 
     });
 
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -48,7 +48,7 @@ export default function RefreshRedirect() {
                 isAthlete = true;
               }
             }
-          } catch (e) {
+          } catch {
             // Table check failed
           }
 
@@ -63,7 +63,7 @@ export default function RefreshRedirect() {
     } else {
       sessionStorage.setItem('refresh_count', newCount.toString());
     }
-  }, [pathname]);
+  }, [pathname, router]);
 
   return null;
 }

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, Clock, QrCode, ClipboardList, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, QrCode, ClipboardList, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -25,7 +26,7 @@ interface Workout {
 
 export default function AthleteDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -58,78 +59,6 @@ export default function AthleteDashboard() {
   const [currentSleep, setCurrentSleep] = useState<number | null>(null);
 
   const proteinTarget = 160;
-
-  // Initialize Session, Profile, and Listen to Auth Changes
-  useEffect(() => {
-    let isMounted = true;
-
-    // 1. Initial check from storage
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && isMounted) {
-        setUser(session.user);
-        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
-      }
-    };
-    checkSession();
-
-    // 2. Listen for auth changes (including when the Magic Link tokens in the URL are processed)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-
-      if (session) {
-        setUser(session.user);
-        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
-      } else {
-        // Redirect to login if initial session verification completed and no session exists
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
-          router.push('/athlete');
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  async function fetchProfile(email: string, userFullName: string) {
-    setProfileLoading(true);
-    let matchedProfile = null;
-
-    // 1. Try matching by email
-    try {
-      const { data: emailData } = await supabase
-        .from('members')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-      if (emailData) {
-        matchedProfile = emailData;
-      }
-    } catch (e) {
-      // Column 'email' doesn't exist yet, ignore and use name matching fallback
-    }
-
-    // 2. Fallback to matching by full_name
-    if (!matchedProfile && userFullName) {
-      const { data: nameData } = await supabase
-        .from('members')
-        .select('*')
-        .eq('full_name', userFullName)
-        .maybeSingle();
-      if (nameData) {
-        matchedProfile = nameData;
-      }
-    }
-
-    if (matchedProfile) {
-      setProfile(matchedProfile);
-      fetchAthleteData(matchedProfile.id);
-    }
-    setProfileLoading(false);
-  }
 
   async function fetchAthleteData(memberId: string) {
     // 1. Fetch workouts
@@ -164,6 +93,79 @@ export default function AthleteDashboard() {
       setCurrentSleep(mData[0].sleep_hours);
     }
   }
+
+  async function fetchProfile(email: string, userFullName: string) {
+    setProfileLoading(true);
+    let matchedProfile = null;
+
+    // 1. Try matching by email
+    try {
+      const { data: emailData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+      if (emailData) {
+        matchedProfile = emailData;
+      }
+    } catch {
+      // Column 'email' doesn't exist yet, ignore and use name matching fallback
+    }
+
+    // 2. Fallback to matching by full_name
+    if (!matchedProfile && userFullName) {
+      const { data: nameData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('full_name', userFullName)
+        .maybeSingle();
+      if (nameData) {
+        matchedProfile = nameData;
+      }
+    }
+
+    if (matchedProfile) {
+      setProfile(matchedProfile);
+      fetchAthleteData(matchedProfile.id);
+    }
+    setProfileLoading(false);
+  }
+
+  // Initialize Session, Profile, and Listen to Auth Changes
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial check from storage
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && isMounted) {
+        setUser(session.user);
+        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
+      }
+    };
+    checkSession();
+
+    // 2. Listen for auth changes (including when the Magic Link tokens in the URL are processed)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
+      } else {
+        // Redirect to login if initial session verification completed and no session exists
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+          router.push('/athlete');
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Workouts logging
   async function handleLogWorkout(e: React.FormEvent) {
@@ -313,7 +315,7 @@ export default function AthleteDashboard() {
           <div className="w-16 h-16 bg-brand-orange/20 border border-brand-orange text-brand-orange rounded-full flex items-center justify-center mx-auto text-3xl">⚠️</div>
           <h2 className="text-2xl font-black tracking-tight uppercase">Profile Unregistered</h2>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Your email <span className="text-white font-mono">{user.email}</span> is authenticated, but it has not been linked to a member record in the gym's database.
+            Your email <span className="text-white font-mono">{user?.email}</span> is authenticated, but it has not been linked to a member record in the gym&apos;s database.
           </p>
           <p className="text-brand-volt text-xs font-bold uppercase tracking-widest leading-relaxed">
             Please ask the gym administrator or owner to add your email address to your profile in the CRM dashboard.
@@ -403,7 +405,7 @@ export default function AthleteDashboard() {
                 <h4 className="text-xs uppercase tracking-wider text-gray-400 font-mono">Recent Logs</h4>
                 {recentWorkouts.length === 0 ? (
                   <div className="bg-brand-dark/40 border border-gray-900/60 p-8 rounded-xl text-center text-gray-500 text-sm">
-                    No strength logs registered yet. Hit "Add Workout" to start logging!
+                    No strength logs registered yet. Hit &quot;Add Workout&quot; to start logging!
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -769,6 +771,7 @@ export default function AthleteDashboard() {
             
             {/* Render QR code based on user memberProfile.id */}
             <div className="bg-white p-4 rounded-2xl inline-block shadow-inner mb-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile.id}`} 
                 alt="HQ Check-in QR" 
