@@ -684,7 +684,13 @@ export default function MasterSequence() {
         {/* Top Header / Brand */}
         <header className="max-w-6xl w-full mx-auto flex justify-between items-center py-4 border-b border-slate-900 relative z-10">
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl text-3d-gymnation">GYMNATION</h1>
+            <h1 
+              onClick={() => window.location.reload()}
+              className="text-3xl text-3d-gymnation cursor-pointer select-none"
+              title="Refresh Page"
+            >
+              GYMNATION
+            </h1>
           </div>
           <p className="text-xs text-gray-500 font-mono uppercase tracking-wider hidden sm:block">Matrix Portal v1.0</p>
         </header>
@@ -771,7 +777,13 @@ export default function MasterSequence() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-3xl text-3d-gymnation">GYMNATION</h1>
+            <h1 
+              onClick={() => window.location.reload()}
+              className="text-3xl text-3d-gymnation cursor-pointer select-none"
+              title="Refresh Page"
+            >
+              GYMNATION
+            </h1>
             <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Live Database Matrix Engine</p>
           </div>
         </div>
