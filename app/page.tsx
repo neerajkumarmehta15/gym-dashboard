@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings } from 'lucide-react';
+import MetricsCard from '../components/MetricsCard';
+import ManagePlansModal from '../components/ManagePlansModal';
 
 interface MemberData {
   id: string;
@@ -97,6 +99,9 @@ export default function MasterSequence() {
 
   // --- PHOTO PREVIEW STATE ---
   const [expandedPhotoMemberId, setExpandedPhotoMemberId] = useState<string | null>(null);
+
+  // --- PLAN MANAGER STATE ---
+  const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
 
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
@@ -876,63 +881,53 @@ export default function MasterSequence() {
           </div>
         </div>
         <div className="flex gap-3">
+          <button onClick={() => setIsPlansModalOpen(true)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-brand-orange/40 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans text-white transition-all"><Settings className="w-4 h-4" /> Manage Plans</button>
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-brand-volt text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans transition-all glow-btn-volt"><UserPlus className="w-4 h-4" /> Add Member</button>
           <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); } window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-5 mb-8 relative z-10 select-none">
-        {/* Expired Metric Card */}
-        <div 
+        <MetricsCard 
+          title="Expired"
+          value={expiredMembers.length}
+          icon={<AlertCircle />}
+          isActive={statusFilter === 'expired'}
+          activeRingClass="ring-rose-500 bg-rose-500/5"
+          iconContainerClass="bg-rose-500/10 text-rose-400"
           onClick={() => setStatusFilter('expired')}
-          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'expired' ? 'ring-2 ring-rose-500 bg-rose-500/5' : ''}`}
-          title="Filter Expired Members"
-        >
-          <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl"><AlertCircle /></div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expired</p>
-            <h3 className="text-2xl font-black">{expiredMembers.length}</h3>
-          </div>
-        </div>
-
-        {/* Expiring Soon Metric Card */}
-        <div 
+          titleTooltip="Filter Expired Members"
+        />
+        <MetricsCard 
+          title="Expiring Soon"
+          value={expiringSoonMembers.length}
+          icon={<Clock />}
+          isActive={statusFilter === 'expiring_soon'}
+          activeRingClass="ring-brand-orange bg-brand-orange/5"
+          iconContainerClass="bg-brand-orange/10 text-brand-orange"
           onClick={() => setStatusFilter('expiring_soon')}
-          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'expiring_soon' ? 'ring-2 ring-brand-orange bg-brand-orange/5' : ''}`}
-          title="Filter Expiring Soon Members"
-        >
-          <div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl"><Clock /></div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Expiring Soon</p>
-            <h3 className="text-2xl font-black">{expiringSoonMembers.length}</h3>
-          </div>
-        </div>
-
-        {/* Active Metric Card */}
-        <div 
+          titleTooltip="Filter Expiring Soon Members"
+        />
+        <MetricsCard 
+          title="Active"
+          value={activeMembers.length}
+          icon={<CheckCircle />}
+          isActive={statusFilter === 'active'}
+          activeRingClass="ring-brand-volt bg-brand-volt/5"
+          iconContainerClass="bg-brand-volt/10 text-brand-volt"
           onClick={() => setStatusFilter('active')}
-          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'active' ? 'ring-2 ring-brand-volt bg-brand-volt/5' : ''}`}
-          title="Filter Active Members"
-        >
-          <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-xl"><CheckCircle /></div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Active</p>
-            <h3 className="text-2xl font-black">{activeMembers.length}</h3>
-          </div>
-        </div>
-
-        {/* Total Revenue Metric Card (reloads all) */}
-        <div 
+          titleTooltip="Filter Active Members"
+        />
+        <MetricsCard 
+          title="Total Revenue"
+          value={`₹${totalRevenue.toLocaleString('en-IN')}`}
+          icon={<DollarSign />}
+          isActive={statusFilter === 'all'}
+          activeRingClass="ring-brand-cyan bg-brand-cyan/5"
+          iconContainerClass="bg-brand-cyan/10 text-brand-cyan"
           onClick={() => setStatusFilter('all')}
-          className={`glass-panel glass-panel-hover p-5 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-250 ${statusFilter === 'all' ? 'ring-2 ring-brand-cyan bg-brand-cyan/5' : ''}`}
-          title="Filter All Members"
-        >
-          <div className="p-3 bg-brand-cyan/10 text-brand-cyan rounded-xl"><DollarSign /></div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">Total Revenue</p>
-            <h3 className="text-2xl font-black text-brand-cyan font-mono">₹{totalRevenue.toLocaleString('en-IN')}</h3>
-          </div>
-        </div>
+          titleTooltip="Filter All Members"
+        />
       </div>
 
 
@@ -1491,6 +1486,13 @@ export default function MasterSequence() {
         </div>
       )}
 
+      {/* --- MANAGE PLANS MODAL --- */}
+      <ManagePlansModal 
+        isOpen={isPlansModalOpen}
+        onClose={() => setIsPlansModalOpen(false)}
+        plans={plans}
+        onPlansUpdated={() => initializeEngine()}
+      />
 
     </div>
   );

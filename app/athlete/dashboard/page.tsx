@@ -5,7 +5,7 @@ import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, QrCode, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
   id: string;
@@ -23,6 +23,7 @@ interface Workout {
   sets: number;
   reps: number;
   weight_kg: number;
+  created_at?: string;
 }
 
 export default function AthleteDashboard() {
@@ -55,6 +56,7 @@ export default function AthleteDashboard() {
 
   // Dashboard logs
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
+  const [selectedExerciseFilter, setSelectedExerciseFilter] = useState('All');
   const [dailyProtein, setDailyProtein] = useState(0);
   const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [currentSleep, setCurrentSleep] = useState<number | null>(null);
@@ -361,8 +363,14 @@ export default function AthleteDashboard() {
     );
   }
 
-  const chartData = [...recentWorkouts].reverse().map(w => ({
-    name: w.exercise_name.substring(0, 8),
+  // Filter progression chart by the selected exercise, and use formatted date for X-axis labels
+  const uniqueExercises = Array.from(new Set(recentWorkouts.map(w => w.exercise_name)));
+  const filteredChartWorkouts = selectedExerciseFilter === 'All' 
+    ? recentWorkouts 
+    : recentWorkouts.filter(w => w.exercise_name === selectedExerciseFilter);
+
+  const chartData = [...filteredChartWorkouts].reverse().map(w => ({
+    name: w.created_at ? new Date(w.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : w.exercise_name.substring(0, 8),
     Weight: w.weight_kg
   }));
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
@@ -460,13 +468,33 @@ export default function AthleteDashboard() {
 
             {/* Progression Chart */}
             <div className="glass-panel p-6 rounded-2xl space-y-4">
-              <h3 className="text-xl font-bold tracking-tight text-brand-cyan flex items-center gap-2">
-                <Activity className="w-5 h-5" /> STRENGTH PROGRESSION
-              </h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold tracking-tight text-brand-cyan flex items-center gap-2">
+                  <Activity className="w-5 h-5" /> STRENGTH PROGRESSION
+                </h3>
+                {recentWorkouts.length > 0 && (
+                  <select 
+                    value={selectedExerciseFilter} 
+                    onChange={(e) => setSelectedExerciseFilter(e.target.value)}
+                    className="bg-brand-dark/80 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-cyan/40 font-mono"
+                  >
+                    <option value="All">All Exercises</option>
+                    {uniqueExercises.map(ex => (
+                      <option key={ex} value={ex}>{ex}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
               <div className="h-64 w-full pt-2">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="glowingArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#d4ff00" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#d4ff00" stopOpacity={0.01}/>
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.5} />
                       <XAxis dataKey="name" stroke="#6b7280" fontSize={11} tickLine={false} />
                       <YAxis stroke="#6b7280" fontSize={11} tickLine={false} unit="kg" />
@@ -474,15 +502,16 @@ export default function AthleteDashboard() {
                         contentStyle={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px' }} 
                         itemStyle={{ color: '#d4ff00' }}
                       />
-                      <Line 
+                      <Area 
                         type="monotone" 
                         dataKey="Weight" 
                         stroke="#d4ff00" 
                         strokeWidth={3} 
+                        fill="url(#glowingArea)"
                         dot={{ r: 5, fill: '#030712', stroke: '#d4ff00', strokeWidth: 2 }} 
                         activeDot={{ r: 7 }} 
                       />
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-gray-500 text-sm">
@@ -706,6 +735,58 @@ export default function AthleteDashboard() {
               <Dumbbell className="w-5 h-5 text-brand-volt" /> Log Workout Routine
             </h3>
             <form onSubmit={handleLogWorkout} className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 uppercase font-mono tracking-widest font-bold">Pre-Planned Workout Helper</label>
+                <select 
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setExercise(e.target.value);
+                      if (!sets) setSets("4");
+                      if (!reps) setReps("12");
+                      if (!weight) setWeight("20");
+                    }
+                  }}
+                  className="w-full bg-brand-dark/80 border border-gray-850 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-volt/50 font-sans"
+                >
+                  <option value="">-- Choose Pre-Planned Routine (Optional) --</option>
+                  <optgroup label="Monday: Chest & Triceps">
+                    <option value="Bench Press">Flat Bench Press (Chest)</option>
+                    <option value="Incline Dumbbell Press">Incline Dumbbell Press (Chest)</option>
+                    <option value="Tricep Cable Pushdown">Tricep Cable Pushdown (Triceps)</option>
+                    <option value="Chest Fly">Dumbbell Chest Fly (Chest)</option>
+                  </optgroup>
+                  <optgroup label="Tuesday: Back & Biceps">
+                    <option value="Lat Pulldown">Lat Pulldown (Back)</option>
+                    <option value="Seated Cable Row">Seated Cable Row (Back)</option>
+                    <option value="Barbell Bicep Curl">Barbell Bicep Curl (Biceps)</option>
+                    <option value="Pull-ups">Bodyweight Pull-ups (Back)</option>
+                  </optgroup>
+                  <optgroup label="Wednesday: Legs & Calves">
+                    <option value="Barbell Squat">Barbell Squat (Legs)</option>
+                    <option value="Leg Press">Leg Press (Legs)</option>
+                    <option value="Leg Curl">Seated Leg Curl (Hamstrings)</option>
+                    <option value="Calf Raise">Standing Calf Raise (Calves)</option>
+                  </optgroup>
+                  <optgroup label="Thursday: Shoulders & Abs">
+                    <option value="Overhead Barbell Press">Overhead Barbell Press (Shoulders)</option>
+                    <option value="Dumbbell Lateral Raise">Dumbbell Lateral Raise (Shoulders)</option>
+                    <option value="Hanging Leg Raise">Hanging Leg Raise (Abs)</option>
+                    <option value="Plank">Plank (Core)</option>
+                  </optgroup>
+                  <optgroup label="Friday: Arms & Forearms">
+                    <option value="Dumbbell Bicep Curl">Dumbbell Bicep Curl (Biceps)</option>
+                    <option value="Lying Tricep Extension">Lying Tricep Extension (Triceps)</option>
+                    <option value="Hammer Bicep Curl">Hammer Bicep Curl (Biceps)</option>
+                    <option value="Wrist Curl">Behind-Back Wrist Curl (Forearms)</option>
+                  </optgroup>
+                  <optgroup label="Saturday: Cardio & Core">
+                    <option value="Treadmill Run">Treadmill Run (Cardio)</option>
+                    <option value="Stationary Cycling">Stationary Cycling (Cardio)</option>
+                    <option value="Russian Twist">Russian Twist (Core)</option>
+                    <option value="Elliptical Trainer">Elliptical Trainer (Cardio)</option>
+                  </optgroup>
+                </select>
+              </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 uppercase font-mono tracking-widest font-bold">Exercise Name</label>
                 <input 
