@@ -60,7 +60,11 @@ export default function LoginScreen() {
           </div>
         </div>
         
-        <h2 className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight">
+        <h2 
+          onClick={() => window.location.reload()}
+          className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight cursor-pointer select-none animate-pulse"
+          title="Refresh Page"
+        >
           GYMNATION
         </h2>
         <p className="text-center text-gray-400 text-sm mb-8 font-sans">
