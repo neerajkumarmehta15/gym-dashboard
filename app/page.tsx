@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, LogOut } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
 
 interface MemberData {
   id: string;
@@ -801,17 +801,11 @@ export default function MasterSequence() {
       <div className="max-w-6xl mx-auto flex justify-between items-center mb-8 border-b border-slate-900 pb-5 relative z-10">
         <div className="flex items-center gap-3.5">
           <button 
-            onClick={async () => {
-              await supabase.auth.signOut();
-              if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('owner_session_active');
-              }
-              router.push('/login');
-            }} 
-            className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-rose-500/40 rounded-xl text-gray-400 hover:text-rose-450 hover:bg-rose-500/5 transition-all duration-200"
-            title="Log Out"
+            onClick={() => window.history.back()} 
+            className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-brand-orange/40 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
+            title="Go Back"
           >
-            <LogOut className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <h1 
@@ -826,6 +820,7 @@ export default function MasterSequence() {
         </div>
         <div className="flex gap-3">
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-brand-volt text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans transition-all glow-btn-volt"><UserPlus className="w-4 h-4" /> Add Member</button>
+          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') sessionStorage.removeItem('owner_session_active'); window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, QrCode, ClipboardList, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, QrCode, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -379,11 +379,11 @@ export default function AthleteDashboard() {
         <header className="glass-panel p-5 md:p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3.5">
             <button 
-              onClick={() => window.history.back()} 
-              className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/40 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
-              title="Go Back"
+              onClick={handleSignOut} 
+              className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-rose-500/40 rounded-xl text-gray-400 hover:text-rose-450 hover:bg-rose-500/5 transition-all duration-200"
+              title="Log Out"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <LogOut className="w-4 h-4" />
             </button>
             <div>
               <h1 className="text-2xl md:text-3xl text-3d-gymnation">
@@ -403,12 +403,6 @@ export default function AthleteDashboard() {
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/30 hover:text-brand-volt px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
             >
               <QrCode className="w-4 h-4" /> Check In QR
-            </button>
-            <button 
-              onClick={handleSignOut} 
-              className="flex items-center justify-center p-2.5 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-400 rounded-xl transition-all"
-            >
-              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </header>
