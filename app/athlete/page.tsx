@@ -13,6 +13,11 @@ export default function AthleteLogin() {
   const [successMsg, setSuccessMsg] = useState('');
   const router = useRouter();
 
+  // PIN security states
+  const [requirePin, setRequirePin] = useState(false);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pendingMember, setPendingMember] = useState<any>(null);
+
   useEffect(() => {
     const clearSession = async () => {
       if (typeof window !== 'undefined') {
@@ -65,13 +70,33 @@ export default function AthleteLogin() {
       }
 
       if (matchedMember) {
-        // Save the direct athlete ID and profile in localStorage for instant loading
-        localStorage.setItem('athlete_logged_id', matchedMember.id);
-        localStorage.setItem('athlete_profile', JSON.stringify(matchedMember));
-        setSuccessMsg(`Welcome back, ${matchedMember.full_name}! Accessing portal...`);
-        setTimeout(() => {
-          router.push('/athlete/dashboard');
-        }, 1200);
+        // Check if PIN is set (stored in gender field as gender|pin)
+        let rawGender = matchedMember.gender || 'Male';
+        if (typeof window !== 'undefined') {
+          const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+          if (!matchedMember.gender) {
+            rawGender = localGenders[matchedMember.id] || 'Male';
+          }
+        }
+        
+        const genderParts = rawGender.split('|');
+        const pin = genderParts[1] || null;
+
+        if (pin) {
+          // PIN is configured
+          setPendingMember({ ...matchedMember, actualPin: pin });
+          setRequirePin(true);
+          setLoading(false);
+          setSuccessMsg('');
+        } else {
+          // Save the direct athlete ID and profile in localStorage for instant loading
+          localStorage.setItem('athlete_logged_id', matchedMember.id);
+          localStorage.setItem('athlete_profile', JSON.stringify(matchedMember));
+          setSuccessMsg(`Welcome back, ${matchedMember.full_name}! Accessing portal...`);
+          setTimeout(() => {
+            router.push('/athlete/dashboard');
+          }, 1200);
+        }
       } else {
         setErrorMsg('No athlete record found. Please verify with your gym owner.');
         setLoading(false);
@@ -80,6 +105,27 @@ export default function AthleteLogin() {
       const errorMessage = err instanceof Error ? err.message : 'Verification failed. Please try again.';
       setErrorMsg(errorMessage);
       setLoading(false);
+    }
+  }
+
+  async function handleVerifyPin(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    if (!pendingMember) return;
+    
+    if (enteredPin === pendingMember.actualPin) {
+      setSuccessMsg(`PIN Verified! Welcome back, ${pendingMember.full_name}...`);
+      localStorage.setItem('athlete_logged_id', pendingMember.id);
+      localStorage.setItem('athlete_profile', JSON.stringify(pendingMember));
+      
+      setTimeout(() => {
+        router.push('/athlete/dashboard');
+      }, 1000);
+    } else {
+      setErrorMsg('Incorrect 4-digit PIN. Please try again.');
+      setEnteredPin('');
     }
   }
 
@@ -94,56 +140,127 @@ export default function AthleteLogin() {
       <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-brand-volt/10 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
-        <div className="flex justify-center mb-6">
-          <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-2xl glow-btn-volt border border-brand-volt/20">
-            <Lock className="w-8 h-8" />
+      {requirePin ? (
+        <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
+          <div className="flex justify-center mb-6">
+            <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-2xl glow-btn-volt border border-brand-volt/20">
+              <Lock className="w-8 h-8" />
+            </div>
           </div>
+
+          <h2 className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight">
+            ENTER PIN
+          </h2>
+          <p className="text-center text-slate-400 text-xs font-mono uppercase tracking-widest mb-6">
+            Security Verification
+          </p>
+          <p className="text-center text-gray-400 text-sm mb-6">
+            Please enter the 4-digit PIN you configured for your account.
+          </p>
+
+          {errorMsg && (
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
+              {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-brand-volt/10 border border-brand-volt/20 text-brand-volt text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
+              {successMsg}
+            </div>
+          )}
+          
+          <form onSubmit={handleVerifyPin} className="space-y-5">
+            <div>
+              <input 
+                type="password" 
+                placeholder="••••"
+                value={enteredPin}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').substring(0, 4);
+                  setEnteredPin(val);
+                }}
+                required
+                pattern="\d{4}"
+                className="w-full bg-brand-dark/60 border border-gray-850 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono text-center tracking-widest text-2xl"
+                autoFocus
+              />
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
+            >
+              VERIFY PIN
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            
+            <button 
+              type="button"
+              onClick={() => {
+                setRequirePin(false);
+                setPendingMember(null);
+                setEnteredPin('');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className="w-full text-center text-xs uppercase tracking-wider text-slate-500 hover:text-slate-350 transition-colors font-mono mt-2 cursor-pointer"
+            >
+              Cancel and Back
+            </button>
+          </form>
         </div>
-
-        <h2 className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight">
-          GYMNATION
-        </h2>
-        <p className="text-center text-slate-400 text-xs font-mono uppercase tracking-widest mb-6">
-          Athlete Portal
-        </p>
-        <p className="text-center text-gray-400 text-sm mb-6">
-          Enter the email address or mobile number registered with your gym membership. No password required.
-        </p>
-
-        {errorMsg && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
-            {errorMsg}
+      ) : (
+        <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
+          <div className="flex justify-center mb-6">
+            <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-2xl glow-btn-volt border border-brand-volt/20">
+              <Lock className="w-8 h-8" />
+            </div>
           </div>
-        )}
 
-        {successMsg && (
-          <div className="bg-brand-volt/10 border border-brand-volt/20 text-brand-volt text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
-            {successMsg}
-          </div>
-        )}
-        
-        <form onSubmit={handleDirectLogin} className="space-y-5">
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Email or Mobile Number</label>
-            <input 
-              type="text" 
-              placeholder="e.g. athlete@gmail.com or 9876543210"
-              value={credential}
-              onChange={(e) => setCredential(e.target.value)}
-              className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
-              required
-            />
-          </div>
-          <button 
-            disabled={loading} 
-            className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
-          >
-            {loading ? 'Accessing Portal...' : 'ENTER PORTAL'}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-      </div>
+          <h2 className="text-3xl text-3d-gymnation text-center mb-2 tracking-tight">
+            GYMNATION
+          </h2>
+          <p className="text-center text-slate-400 text-xs font-mono uppercase tracking-widest mb-6">
+            Athlete Portal
+          </p>
+          <p className="text-center text-gray-400 text-sm mb-6">
+            Enter the email address or mobile number registered with your gym membership. No password required.
+          </p>
+
+          {errorMsg && (
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
+              {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-brand-volt/10 border border-brand-volt/20 text-brand-volt text-xs p-3.5 rounded-xl mb-5 text-center font-mono">
+              {successMsg}
+            </div>
+          )}
+          
+          <form onSubmit={handleDirectLogin} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Email or Mobile Number</label>
+              <input 
+                type="text" 
+                placeholder="e.g. athlete@gmail.com or 9876543210"
+                value={credential}
+                onChange={(e) => setCredential(e.target.value)}
+                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
+                required
+              />
+            </div>
+            <button 
+              disabled={loading} 
+              className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
+            >
+              {loading ? 'Accessing Portal...' : 'ENTER PORTAL'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
