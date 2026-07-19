@@ -95,14 +95,7 @@ export default function MasterSequence() {
   const [alertMember, setAlertMember] = useState<MemberData | null>(null);
 
   // --- PHOTO PREVIEW STATE ---
-  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
-  const [previewPhotoName, setPreviewPhotoName] = useState('');
-  const [zoomScale, setZoomScale] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
-  const [hasPanned, setHasPanned] = useState(false);
+  const [expandedPhotoMemberId, setExpandedPhotoMemberId] = useState<string | null>(null);
 
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
@@ -305,108 +298,33 @@ export default function MasterSequence() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Click outside listener to close active dropdown menu
+  // Click outside listener to close active dropdown menu or expanded photo
   useEffect(() => {
-    if (activeMenuMemberId === null) return;
+    if (activeMenuMemberId === null && expandedPhotoMemberId === null) return;
 
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('.options-menu-btn') || target.closest('.options-menu-dropdown')) {
-        return;
+      
+      // Close dropdown if clicked outside
+      if (activeMenuMemberId !== null) {
+        if (!target.closest('.options-menu-btn') && !target.closest('.options-menu-dropdown')) {
+          setActiveMenuMemberId(null);
+        }
       }
-      setActiveMenuMemberId(null);
+
+      // Close expanded photo if clicked outside
+      if (expandedPhotoMemberId !== null) {
+        if (!target.closest('.active-zoom')) {
+          setExpandedPhotoMemberId(null);
+        }
+      }
     };
 
     document.addEventListener('click', handleOutsideClick);
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
-  }, [activeMenuMemberId]);
-
-  // --- Photo Preview Zoom & Pan Handlers ---
-  const handleZoomIn = () => {
-    setZoomScale(prev => Math.min(prev + 0.5, 4));
-  };
-
-  const handleZoomOut = () => {
-    setZoomScale(prev => {
-      const next = Math.max(prev - 0.5, 1);
-      if (next === 1) {
-        setPanOffset({ x: 0, y: 0 });
-      }
-      return next;
-    });
-  };
-
-  const handleZoomReset = () => {
-    setZoomScale(1);
-    setPanOffset({ x: 0, y: 0 });
-  };
-
-  const closePhotoPreview = () => {
-    setPreviewPhotoUrl(null);
-    setPreviewPhotoName('');
-    handleZoomReset();
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoomScale <= 1) return;
-    setIsPanning(true);
-    setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
-    setDragStartPos({ x: e.clientX, y: e.clientY });
-    setHasPanned(false);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning) return;
-    const dx = e.clientX - dragStartPos.x;
-    const dy = e.clientY - dragStartPos.y;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      setHasPanned(true);
-    }
-    setPanOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-    if (hasPanned) {
-      setTimeout(() => {
-        setHasPanned(false);
-      }, 50);
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (zoomScale <= 1 || e.touches.length !== 1) return;
-    setIsPanning(true);
-    setPanStart({ 
-      x: e.touches[0].clientX - panOffset.x, 
-      y: e.touches[0].clientY - panOffset.y 
-    });
-    setDragStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-    setHasPanned(false);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isPanning || e.touches.length !== 1) return;
-    const dx = e.touches[0].clientX - dragStartPos.x;
-    const dy = e.touches[0].clientY - dragStartPos.y;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      setHasPanned(true);
-    }
-    setPanOffset({
-      x: e.touches[0].clientX - panStart.x,
-      y: e.touches[0].clientY - panStart.y
-    });
-  };
-
-  const handlePhotoClick = () => {
-    if (hasPanned) return;
-    closePhotoPreview();
-  };
+  }, [activeMenuMemberId, expandedPhotoMemberId]);
 
   async function toggleMemberStatus(id: string, currentStatus: string) {
     const nextStatus = currentStatus === 'active' ? 'expired' : 'active';
@@ -905,31 +823,55 @@ export default function MasterSequence() {
               return (
                 <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
                   <div className="flex items-center gap-4">
-                    {/* Avatar Container */}
-                    <div 
-                      className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''} ${resolvedPhoto ? 'cursor-pointer' : ''}`}
-                      onClick={() => {
-                        if (resolvedPhoto) {
-                          setPreviewPhotoUrl(resolvedPhoto);
-                          setPreviewPhotoName(member.full_name);
-                        }
-                      }}
-                    >
-                      {resolvedPhoto ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={resolvedPhoto} alt={member.full_name} />
-                      ) : resolvedGender === 'Female' ? (
-                        <svg className="w-8 h-8 text-brand-orange/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
-                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-                          <path d="M12 1v3M10 2h4" strokeWidth="1" />
-                        </svg>
-                      ) : (
-                        <svg className="w-8 h-8 text-brand-volt/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
-                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-                          <path d="M12 4V2" strokeWidth="2" />
-                        </svg>
+                    {/* Avatar Container with In-Place Zoom */}
+                    <div className="relative flex items-center justify-center w-12 h-12">
+                      {/* Normal Avatar (visible when not zoomed, behaves as layout space placeholder) */}
+                      <div 
+                        className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''} ${resolvedPhoto ? 'cursor-pointer' : ''}`}
+                        style={{ opacity: expandedPhotoMemberId === member.id ? 0 : 1 }}
+                        onClick={() => {
+                          if (resolvedPhoto) {
+                            setExpandedPhotoMemberId(expandedPhotoMemberId === member.id ? null : member.id);
+                          }
+                        }}
+                      >
+                        {resolvedPhoto ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={resolvedPhoto} alt={member.full_name} />
+                        ) : resolvedGender === 'Female' ? (
+                          <svg className="w-8 h-8 text-brand-orange/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
+                            <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                            <path d="M12 1v3M10 2h4" strokeWidth="1" />
+                          </svg>
+                        ) : (
+                          <svg className="w-8 h-8 text-brand-volt/80 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
+                            <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                            <path d="M12 4V2" strokeWidth="2" />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Zoomed Circular Popover Card (In same place, absolute positioned) */}
+                      {expandedPhotoMemberId === member.id && resolvedPhoto && (
+                        <div 
+                          className={`whatsapp-avatar active-zoom absolute ${resolvedGender === 'Female' ? 'female' : ''} z-30 cursor-pointer shadow-2xl border-4 border-slate-800/90`}
+                          style={{
+                            width: '180px',
+                            height: '180px',
+                            top: '-66px', // Center vertically over the 48px avatar: (180 - 48)/2 = 66px
+                            left: '-66px', // Center horizontally
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedPhotoMemberId(null);
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={resolvedPhoto} alt={member.full_name} className="w-full h-full object-cover" />
+                        </div>
                       )}
                     </div>
                     
@@ -1320,92 +1262,6 @@ export default function MasterSequence() {
         </div>
       )}
 
-
-      {/* --- PHOTO PREVIEW & ZOOM MODAL --- */}
-      {previewPhotoUrl && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none cursor-zoom-out"
-          onClick={handlePhotoClick}
-        >
-          
-          <div 
-            className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center justify-center z-10"
-            onClick={(e) => {
-              // Stop propagation only for the Action Bar buttons
-              const target = e.target as HTMLElement;
-              if (target.closest('.action-bar-btn') || target.closest('.action-bar')) {
-                e.stopPropagation();
-              }
-            }}
-          >
-            {/* Header with Title & Close Icon */}
-            <div className="absolute top-[-48px] left-0 right-0 flex justify-between items-center text-white px-2">
-              <span className="text-sm font-bold tracking-wider uppercase text-slate-300">{previewPhotoName}</span>
-              <button 
-                onClick={closePhotoPreview} 
-                className="p-2 bg-slate-900/80 border border-slate-800 hover:border-rose-500/50 rounded-xl text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Photo Container */}
-            <div 
-              className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden flex items-center justify-center border-4 border-slate-800 bg-slate-950/60 relative shadow-2xl"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleMouseUp}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={previewPhotoUrl} 
-                alt={previewPhotoName} 
-                draggable={false}
-                className="w-full h-full object-cover select-none transition-transform duration-100 ease-out"
-                style={{
-                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
-                  cursor: zoomScale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default'
-                }}
-              />
-            </div>
-
-            {/* Zoom / Pan Action Bar */}
-            <div className="absolute bottom-[-56px] flex items-center gap-4 bg-slate-900/80 border border-slate-800 rounded-2xl px-5 py-2.5 shadow-xl action-bar">
-              <button 
-                onClick={handleZoomOut} 
-                disabled={zoomScale <= 1}
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
-                title="Zoom Out"
-              >
-                ➖
-              </button>
-              <span className="text-xs font-mono font-bold text-brand-volt min-w-[40px] text-center">
-                {Math.round(zoomScale * 100)}%
-              </span>
-              <button 
-                onClick={handleZoomIn} 
-                disabled={zoomScale >= 4}
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-white disabled:opacity-40 transition-opacity cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
-                title="Zoom In"
-              >
-                ➕
-              </button>
-              <div className="w-[1px] h-4 bg-slate-800"></div>
-              <button 
-                onClick={handleZoomReset} 
-                className="text-xs uppercase tracking-widest font-mono font-bold text-slate-400 hover:text-brand-orange transition-all cursor-pointer px-2.5 py-1.5 hover:bg-slate-800 rounded-lg action-bar-btn"
-              >
-                Reset
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );
