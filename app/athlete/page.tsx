@@ -65,8 +65,9 @@ export default function AthleteLogin() {
       }
 
       if (matchedMember) {
-        // Save the direct athlete ID in localStorage
+        // Save the direct athlete ID and profile in localStorage for instant loading
         localStorage.setItem('athlete_logged_id', matchedMember.id);
+        localStorage.setItem('athlete_profile', JSON.stringify(matchedMember));
         setSuccessMsg(`Welcome back, ${matchedMember.full_name}! Accessing portal...`);
         setTimeout(() => {
           router.push('/athlete/dashboard');

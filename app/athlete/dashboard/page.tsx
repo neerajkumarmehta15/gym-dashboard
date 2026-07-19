@@ -124,18 +124,26 @@ export default function AthleteDashboard() {
     if (workoutsRes.data) {
       // Find the latest coach note suggestion
       const latestNote = workoutsRes.data.find(w => w.exercise_name.startsWith("[Coach Note] "));
-      setCoachSuggestion(latestNote ? latestNote.exercise_name.substring(13) : "");
+      const noteText = latestNote ? latestNote.exercise_name.substring(13) : "";
+      setCoachSuggestion(noteText);
+      localStorage.setItem('athlete_coach_suggestion', noteText);
 
       // Filter out coach notes from the visible workouts list
       const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
-      setRecentWorkouts(actualWorkouts.slice(0, 10));
+      const sliced = actualWorkouts.slice(0, 10);
+      setRecentWorkouts(sliced);
+      localStorage.setItem('athlete_workouts', JSON.stringify(sliced));
     }
     if (nutritionRes.data) {
-      setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
+      const totalProt = nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0);
+      setDailyProtein(totalProt);
+      localStorage.setItem('athlete_protein', String(totalProt));
     }
     if (recoveryRes.data && recoveryRes.data.length > 0) {
       setCurrentWeight(recoveryRes.data[0].body_weight_kg);
       setCurrentSleep(recoveryRes.data[0].sleep_hours);
+      localStorage.setItem('athlete_weight', String(recoveryRes.data[0].body_weight_kg));
+      localStorage.setItem('athlete_sleep', String(recoveryRes.data[0].sleep_hours));
     }
   }
 
@@ -156,6 +164,7 @@ export default function AthleteDashboard() {
 
     if (matchedProfile) {
       setProfile(matchedProfile);
+      localStorage.setItem('athlete_profile', JSON.stringify(matchedProfile));
       fetchAthleteData(matchedProfile.full_name);
     }
     setProfileLoading(false);
@@ -169,39 +178,84 @@ export default function AthleteDashboard() {
       // 1. Check custom direct password-less session first
       if (typeof window !== 'undefined') {
         const directId = localStorage.getItem('athlete_logged_id');
+        const cachedProfile = localStorage.getItem('athlete_profile');
+        const cachedWorkouts = localStorage.getItem('athlete_workouts');
+        const cachedProtein = localStorage.getItem('athlete_protein');
+        const cachedWeight = localStorage.getItem('athlete_weight');
+        const cachedSleep = localStorage.getItem('athlete_sleep');
+        const cachedCoachSuggestion = localStorage.getItem('athlete_coach_suggestion');
+
+        // Load cached values instantly so there's no loading screen
+        if (cachedProfile && isMounted) {
+          const parsed = JSON.parse(cachedProfile);
+          setProfile(parsed);
+          if (cachedWorkouts) setRecentWorkouts(JSON.parse(cachedWorkouts));
+          if (cachedProtein) setDailyProtein(Number(cachedProtein));
+          if (cachedWeight) setCurrentWeight(Number(cachedWeight));
+          if (cachedSleep) setCurrentSleep(Number(cachedSleep));
+          if (cachedCoachSuggestion) setCoachSuggestion(cachedCoachSuggestion);
+          setProfileLoading(false);
+        }
+
         if (directId) {
           const today = new Date().toISOString().split('T')[0];
 
-          // Fetch the profileData first to get the athlete's full name, then fetch their workouts & metrics in parallel
-          const { data: profileData } = await supabase.from('members').select('*').eq('id', directId).maybeSingle();
-          
+          // Fetch profile and all metrics in parallel
+          const [profileRes, workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
+            supabase.from('members').select('*').eq('id', directId).maybeSingle(),
+            supabase.from('workouts').select('*').eq('member_name', cachedProfile ? JSON.parse(cachedProfile).full_name : '').order('created_at', { ascending: false }).limit(30),
+            supabase.from('nutrition_logs').select('protein_grams').eq('member_name', cachedProfile ? JSON.parse(cachedProfile).full_name : '').gte('created_at', today),
+            supabase.from('recovery_metrics').select('*').eq('member_name', cachedProfile ? JSON.parse(cachedProfile).full_name : '').order('created_at', { ascending: false }).limit(1)
+          ]);
+
+          const profileData = profileRes.data;
           if (profileData && isMounted) {
             setProfile(profileData);
-            
-            const [workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
-              supabase.from('workouts').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(30),
-              supabase.from('nutrition_logs').select('protein_grams').eq('member_name', profileData.full_name).gte('created_at', today),
-              supabase.from('recovery_metrics').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(1)
-            ]);
+            localStorage.setItem('athlete_profile', JSON.stringify(profileData));
 
-            if (workoutsRes.data) {
-              const latestNote = workoutsRes.data.find(w => w.exercise_name.startsWith("[Coach Note] "));
-              setCoachSuggestion(latestNote ? latestNote.exercise_name.substring(13) : "");
+            // If we didn't have cached profile previously, fetch metrics now using the fresh name
+            let wData = workoutsRes.data;
+            let nData = nutritionRes.data;
+            let rData = recoveryRes.data;
 
-              const actualWorkouts = workoutsRes.data.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
-              setRecentWorkouts(actualWorkouts.slice(0, 10));
+            if (!cachedProfile) {
+              const [wRes, nRes, rRes] = await Promise.all([
+                supabase.from('workouts').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(30),
+                supabase.from('nutrition_logs').select('protein_grams').eq('member_name', profileData.full_name).gte('created_at', today),
+                supabase.from('recovery_metrics').select('*').eq('member_name', profileData.full_name).order('created_at', { ascending: false }).limit(1)
+              ]);
+              wData = wRes.data;
+              nData = nRes.data;
+              rData = rRes.data;
             }
-            if (nutritionRes.data) {
-              setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
+
+            if (wData) {
+              const latestNote = wData.find(w => w.exercise_name.startsWith("[Coach Note] "));
+              const noteText = latestNote ? latestNote.exercise_name.substring(13) : "";
+              setCoachSuggestion(noteText);
+              localStorage.setItem('athlete_coach_suggestion', noteText);
+
+              const actualWorkouts = wData.filter(w => !w.exercise_name.startsWith("[Coach Note] "));
+              const sliced = actualWorkouts.slice(0, 10);
+              setRecentWorkouts(sliced);
+              localStorage.setItem('athlete_workouts', JSON.stringify(sliced));
             }
-            if (recoveryRes.data && recoveryRes.data.length > 0) {
-              setCurrentWeight(recoveryRes.data[0].body_weight_kg);
-              setCurrentSleep(recoveryRes.data[0].sleep_hours);
+            if (nData) {
+              const totalProt = nData.reduce((acc, curr) => acc + Number(curr.protein_grams), 0);
+              setDailyProtein(totalProt);
+              localStorage.setItem('athlete_protein', String(totalProt));
+            }
+            if (rData && rData.length > 0) {
+              setCurrentWeight(rData[0].body_weight_kg);
+              setCurrentSleep(rData[0].sleep_hours);
+              localStorage.setItem('athlete_weight', String(rData[0].body_weight_kg));
+              localStorage.setItem('athlete_sleep', String(rData[0].sleep_hours));
             }
             setProfileLoading(false);
             return;
           } else {
             localStorage.removeItem('athlete_logged_id');
+            localStorage.removeItem('athlete_profile');
           }
         }
       }
@@ -383,6 +437,12 @@ export default function AthleteDashboard() {
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('athlete_logged_id');
+      localStorage.removeItem('athlete_profile');
+      localStorage.removeItem('athlete_workouts');
+      localStorage.removeItem('athlete_protein');
+      localStorage.removeItem('athlete_weight');
+      localStorage.removeItem('athlete_sleep');
+      localStorage.removeItem('athlete_coach_suggestion');
     }
     supabase.auth.signOut().then(() => {
       router.push('/athlete');
