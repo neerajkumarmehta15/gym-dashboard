@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare } from 'lucide-react';
 
@@ -152,14 +153,17 @@ export default function MasterSequence() {
   // ==========================================
   // INITIALIZE ENGINE
   // ==========================================
-  async function initializeEngine() {
+  async function initializeEngine(passedSession?: Session) {
     setIsSyncing(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    let session = passedSession;
     if (!session) {
-      router.push('/login');
-      return; 
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        router.push('/login');
+        return; 
+      }
+      session = currentSession;
     }
 
     // Check if the logged-in user is an athlete
@@ -248,10 +252,40 @@ export default function MasterSequence() {
   }
 
   useEffect(() => { 
-    const timer = setTimeout(() => {
-      initializeEngine();
-    }, 0);
-    return () => clearTimeout(timer);
+    let isMounted = true;
+    let hasLoaded = false;
+
+    // 1. Initial check from storage
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && isMounted && !hasLoaded) {
+        hasLoaded = true;
+        initializeEngine(session);
+      }
+    };
+    checkSession();
+
+    // 2. Listen for auth changes (including when Magic Link tokens in URL are processed)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (session) {
+        if (!hasLoaded) {
+          hasLoaded = true;
+          initializeEngine(session);
+        }
+      } else {
+        // Redirect to login if initial session verification completed and no session exists
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+          router.push('/login');
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
