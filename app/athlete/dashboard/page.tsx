@@ -14,6 +14,7 @@ interface MemberProfile {
   joined_date: string;
   status: string;
   email: string;
+  suggestions?: string;
 }
 
 interface Workout {
@@ -501,6 +502,24 @@ export default function AthleteDashboard() {
 
           {/* Sidebar Area - Column 3 */}
           <div className="space-y-6">
+
+            {/* Coach Recommendation Module */}
+            <div className="glass-panel p-6 rounded-2xl space-y-4 border border-brand-orange/30 bg-brand-orange/5">
+              <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-brand-orange animate-pulse" /> COACH RECOMMENDATION
+              </h3>
+              <div className="bg-brand-dark/50 border border-gray-900/60 p-4 rounded-xl">
+                {profile?.suggestions ? (
+                  <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line font-sans">
+                    {profile.suggestions}
+                  </p>
+                ) : (
+                  <p className="text-gray-500 text-xs italic font-sans text-center py-2">
+                    No suggestions or workout plan notes logged by your trainer yet.
+                  </p>
+                )}
+              </div>
+            </div>
             
             {/* Nutrition Module */}
             <div className="glass-panel p-6 rounded-2xl space-y-6">

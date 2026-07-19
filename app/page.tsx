@@ -15,6 +15,7 @@ interface MemberData {
   email?: string;
   gender?: string;
   photo?: string;
+  suggestions?: string;
   start_date?: string;
   end_date?: string | null;
   days_left?: number;
@@ -100,6 +101,8 @@ export default function MasterSequence() {
   // --- TRACKING & ASSIGNMENT STATE ---
   const [selectedAthlete, setSelectedAthlete] = useState<MemberData | null>(null);
   const [athleteWorkouts, setAthleteWorkouts] = useState<Workout[]>([]);
+  const [ownerSuggestion, setOwnerSuggestion] = useState("");
+  const [saveSuggestionStatus, setSaveSuggestionStatus] = useState("");
   const [assignEx, setAssignEx] = useState("");
   const [assignSets, setAssignSets] = useState("");
   const [assignReps, setAssignReps] = useState("");
@@ -608,7 +611,26 @@ export default function MasterSequence() {
   // ==========================================
   async function openAthleteDossier(athlete: MemberData) {
     setSelectedAthlete(athlete);
+    setOwnerSuggestion(athlete.suggestions || "");
     fetchAthleteLogs(athlete.id);
+  }
+
+  async function handleSaveSuggestions() {
+    if (!selectedAthlete) return;
+    setSaveSuggestionStatus("Saving to Portal...");
+    const { error } = await supabase
+      .from('members')
+      .update({ suggestions: ownerSuggestion })
+      .eq('id', selectedAthlete.id);
+    
+    if (!error) {
+      setSaveSuggestionStatus("Suggestions Saved! ✅");
+      setSelectedAthlete(prev => prev ? { ...prev, suggestions: ownerSuggestion } : null);
+      setMembers(prev => prev.map(m => m.id === selectedAthlete.id ? { ...m, suggestions: ownerSuggestion } : m));
+      setTimeout(() => setSaveSuggestionStatus(""), 3000);
+    } else {
+      setSaveSuggestionStatus(`Error: ${error.message}`);
+    }
   }
 
   async function fetchAthleteLogs(memberId: string) {
@@ -1307,18 +1329,40 @@ export default function MasterSequence() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Assign Routine Form */}
-              <div className="bg-slate-950/50 p-6 rounded-xl border border-slate-800">
-                <h3 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2"><Activity className="w-5 h-5"/> Assign Workout Routine</h3>
-                <form onSubmit={handleAssignWorkout} className="space-y-4">
-                  <input type="text" required value={assignEx} onChange={(e) => setAssignEx(e.target.value)} placeholder="Exercise Name" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-blue-500" />
-                  <div className="flex gap-4">
-                    <input type="number" required value={assignSets} onChange={(e) => setAssignSets(e.target.value)} placeholder="Sets" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
-                    <input type="number" required value={assignReps} onChange={(e) => setAssignReps(e.target.value)} placeholder="Reps" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
-                    <input type="number" required step="0.5" value={assignWeight} onChange={(e) => setAssignWeight(e.target.value)} placeholder="Weight (kg)" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
+              <div className="bg-slate-950/50 p-6 rounded-xl border border-slate-800 space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2"><Activity className="w-5 h-5"/> Assign Workout Routine</h3>
+                  <form onSubmit={handleAssignWorkout} className="space-y-4">
+                    <input type="text" required value={assignEx} onChange={(e) => setAssignEx(e.target.value)} placeholder="Exercise Name" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-blue-500" />
+                    <div className="flex gap-4">
+                      <input type="number" required value={assignSets} onChange={(e) => setAssignSets(e.target.value)} placeholder="Sets" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
+                      <input type="number" required value={assignReps} onChange={(e) => setAssignReps(e.target.value)} placeholder="Reps" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
+                      <input type="number" required step="0.5" value={assignWeight} onChange={(e) => setAssignWeight(e.target.value)} placeholder="Weight (kg)" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
+                    </div>
+                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors uppercase tracking-widest text-sm mt-2">Push to Athlete Portal</button>
+                    {assignStatus && <p className="text-center mt-2 text-emerald-400 font-bold text-sm">{assignStatus}</p>}
+                  </form>
+                </div>
+
+                <div className="border-t border-slate-800 pt-6">
+                  <h3 className="text-lg font-bold text-brand-orange mb-4 flex items-center gap-2"><MessageSquare className="w-5 h-5 text-brand-orange"/> Trainer Suggestions</h3>
+                  <div className="space-y-4">
+                    <textarea 
+                      value={ownerSuggestion} 
+                      onChange={(e) => setOwnerSuggestion(e.target.value)} 
+                      placeholder="Write training/diet suggestions (e.g. Cardio 20 mins, maintain protein goal...)" 
+                      className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-brand-orange/50 h-28 text-sm leading-relaxed"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleSaveSuggestions} 
+                      className="w-full bg-brand-orange hover:bg-brand-orange/95 text-black font-extrabold py-3 rounded-lg transition-all uppercase tracking-widest text-xs tracking-wider"
+                    >
+                      Save Suggestions
+                    </button>
+                    {saveSuggestionStatus && <p className="text-center mt-2 text-emerald-400 font-bold text-sm font-mono">{saveSuggestionStatus}</p>}
                   </div>
-                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors uppercase tracking-widest text-sm mt-2">Push to Athlete Portal</button>
-                  {assignStatus && <p className="text-center mt-2 text-emerald-400 font-bold text-sm">{assignStatus}</p>}
-                </form>
+                </div>
               </div>
 
               {/* View Tracked Progress */}
