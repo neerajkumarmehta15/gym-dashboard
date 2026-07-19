@@ -255,8 +255,13 @@ export default function MasterSequence() {
   useEffect(() => { 
     let isMounted = true;
 
-    // 1. Initial check from storage
+    // 1. Initial check from storage & flush if fresh visit
     const checkSession = async () => {
+      if (typeof window !== 'undefined' && !sessionStorage.getItem('owner_session_active')) {
+        await supabase.auth.signOut();
+        sessionStorage.setItem('owner_session_active', 'true');
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted) {
         if (session) {
@@ -741,7 +746,7 @@ export default function MasterSequence() {
         </div>
         <div className="flex gap-3">
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-brand-volt text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans transition-all glow-btn-volt"><UserPlus className="w-4 h-4" /> Add Member</button>
-          <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
+          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') sessionStorage.removeItem('owner_session_active'); window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
         </div>
       </div>
 
