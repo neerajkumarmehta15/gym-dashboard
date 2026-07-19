@@ -38,6 +38,9 @@ export default function LoginScreen() {
       setError(error.message);
       setIsAuthenticating(false);
     } else {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('owner_session_active', 'true');
+      }
       router.push('/'); // Teleport to the dashboard on success
     }
   }
