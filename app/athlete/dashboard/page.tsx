@@ -64,36 +64,36 @@ export default function AthleteDashboard() {
   const proteinTarget = 160;
 
   async function fetchAthleteData(memberId: string) {
-    // 1. Fetch workouts
-    const { data: wData } = await supabase
-      .from('workouts')
-      .select('*')
-      .eq('member_id', memberId)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (wData) setRecentWorkouts(wData);
-
-    // 2. Fetch daily nutrition
     const today = new Date().toISOString().split('T')[0];
-    const { data: nData } = await supabase
-      .from('nutrition_logs')
-      .select('protein_grams')
-      .eq('member_id', memberId)
-      .gte('created_at', today);
-    if (nData) {
-      setDailyProtein(nData.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
-    }
 
-    // 3. Fetch recovery metrics
-    const { data: mData } = await supabase
-      .from('recovery_metrics')
-      .select('*')
-      .eq('member_id', memberId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    if (mData && mData.length > 0) {
-      setCurrentWeight(mData[0].body_weight_kg);
-      setCurrentSleep(mData[0].sleep_hours);
+    // Parallelize all raw athlete data fetching queries to speed up loads
+    const [workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
+      supabase
+        .from('workouts')
+        .select('*')
+        .eq('member_id', memberId)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('nutrition_logs')
+        .select('protein_grams')
+        .eq('member_id', memberId)
+        .gte('created_at', today),
+      supabase
+        .from('recovery_metrics')
+        .select('*')
+        .eq('member_id', memberId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+    ]);
+
+    if (workoutsRes.data) setRecentWorkouts(workoutsRes.data);
+    if (nutritionRes.data) {
+      setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
+    }
+    if (recoveryRes.data && recoveryRes.data.length > 0) {
+      setCurrentWeight(recoveryRes.data[0].body_weight_kg);
+      setCurrentSleep(recoveryRes.data[0].sleep_hours);
     }
   }
 
@@ -101,30 +101,15 @@ export default function AthleteDashboard() {
     setProfileLoading(true);
     let matchedProfile = null;
 
-    // 1. Try matching by email
     try {
-      const { data: emailData } = await supabase
-        .from('members')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-      if (emailData) {
-        matchedProfile = emailData;
-      }
+      // Query email and name matches concurrently to eliminate waterfall
+      const [emailRes, nameRes] = await Promise.all([
+        email ? supabase.from('members').select('*').eq('email', email).maybeSingle() : Promise.resolve({ data: null }),
+        userFullName ? supabase.from('members').select('*').eq('full_name', userFullName).maybeSingle() : Promise.resolve({ data: null })
+      ]);
+      matchedProfile = emailRes.data || nameRes?.data;
     } catch {
-      // Column 'email' doesn't exist yet, ignore and use name matching fallback
-    }
-
-    // 2. Fallback to matching by full_name
-    if (!matchedProfile && userFullName) {
-      const { data: nameData } = await supabase
-        .from('members')
-        .select('*')
-        .eq('full_name', userFullName)
-        .maybeSingle();
-      if (nameData) {
-        matchedProfile = nameData;
-      }
+      // Fallback
     }
 
     if (matchedProfile) {
@@ -143,15 +128,27 @@ export default function AthleteDashboard() {
       if (typeof window !== 'undefined') {
         const directId = localStorage.getItem('athlete_logged_id');
         if (directId) {
-          const { data: profileData } = await supabase
-            .from('members')
-            .select('*')
-            .eq('id', directId)
-            .maybeSingle();
+          const today = new Date().toISOString().split('T')[0];
+
+          // Fetch athlete profile AND metrics in parallel to load the dashboard in a single pass
+          const [profileRes, workoutsRes, nutritionRes, recoveryRes] = await Promise.all([
+            supabase.from('members').select('*').eq('id', directId).maybeSingle(),
+            supabase.from('workouts').select('*').eq('member_id', directId).order('created_at', { ascending: false }).limit(10),
+            supabase.from('nutrition_logs').select('protein_grams').eq('member_id', directId).gte('created_at', today),
+            supabase.from('recovery_metrics').select('*').eq('member_id', directId).order('created_at', { ascending: false }).limit(1)
+          ]);
           
+          const profileData = profileRes.data;
           if (profileData && isMounted) {
             setProfile(profileData);
-            fetchAthleteData(profileData.id);
+            if (workoutsRes.data) setRecentWorkouts(workoutsRes.data);
+            if (nutritionRes.data) {
+              setDailyProtein(nutritionRes.data.reduce((acc, curr) => acc + Number(curr.protein_grams), 0));
+            }
+            if (recoveryRes.data && recoveryRes.data.length > 0) {
+              setCurrentWeight(recoveryRes.data[0].body_weight_kg);
+              setCurrentSleep(recoveryRes.data[0].sleep_hours);
+            }
             setProfileLoading(false);
             return;
           } else {
