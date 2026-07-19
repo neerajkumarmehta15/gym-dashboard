@@ -15,6 +15,8 @@ interface MemberProfile {
   status: string;
   email: string;
   suggestions?: string;
+  gender?: string | null;
+  photo?: string | null;
 }
 
 interface Workout {
@@ -86,6 +88,11 @@ export default function AthleteDashboard() {
   // Password Setup state
   const [newPassword, setNewPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState('');
+
+  // Profile Picture state
+  const [photoBase64, setPhotoBase64] = useState('');
+  const [photoStatus, setPhotoStatus] = useState('');
+  const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
 
   // Dashboard logs
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
@@ -352,6 +359,16 @@ export default function AthleteDashboard() {
     };
   }, [profile?.full_name]);
 
+  // Click outside to close expanded avatar zoom
+  useEffect(() => {
+    if (!isPhotoZoomed) return;
+    const handleOutsideClick = () => {
+      setIsPhotoZoomed(false);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [isPhotoZoomed]);
+
   // Workouts logging
   async function handleLogWorkout(e: React.FormEvent) {
     e.preventDefault();
@@ -486,6 +503,47 @@ export default function AthleteDashboard() {
     }
   }
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  async function handlePhotoUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setPhotoStatus('Uploading picture...');
+
+    const { error } = await supabase
+      .from('members')
+      .update({ photo: photoBase64 || null })
+      .eq('id', profile.id);
+
+    if (!error) {
+      setPhotoStatus('Profile picture updated! ✅');
+      
+      const updatedProfile = { ...profile, photo: photoBase64 || null };
+      setProfile(updatedProfile);
+      localStorage.setItem('athlete_profile', JSON.stringify(updatedProfile));
+      
+      if (typeof window !== 'undefined') {
+        const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+        localPhotos[profile.id] = photoBase64;
+        localStorage.setItem('gymnation_member_photos', JSON.stringify(localPhotos));
+      }
+      
+      setPhotoBase64('');
+      setTimeout(() => setPhotoStatus(''), 3500);
+    } else {
+      setPhotoStatus(`Error: ${error.message}`);
+    }
+  }
+
   // Sign out handler
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
@@ -551,6 +609,20 @@ export default function AthleteDashboard() {
   }));
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
 
+  // Resolve gender
+  let resolvedGender = profile?.gender || 'Male';
+  if (typeof window !== 'undefined' && profile?.id && !profile?.gender) {
+    const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+    resolvedGender = localGenders[profile.id] || 'Male';
+  }
+
+  // Resolve photo
+  let resolvedPhoto = profile?.photo || null;
+  if (typeof window !== 'undefined' && profile?.id && !profile?.photo) {
+    const localPhotos = JSON.parse(localStorage.getItem('gymnation_member_photos') || '{}');
+    resolvedPhoto = localPhotos[profile.id] || null;
+  }
+
   return (
     <div className="min-h-screen bg-brand-dark text-gray-100 p-4 md:p-8 relative overflow-hidden font-sans">
       {/* Background glow effects */}
@@ -569,18 +641,71 @@ export default function AthleteDashboard() {
             >
               <LogOut className="w-4 h-4" />
             </button>
+            
+            {/* Athlete Avatar with In-Place Zoom */}
+            <div className="relative flex items-center justify-center w-12 h-12 select-none">
+              <div 
+                className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''} ${resolvedPhoto ? 'cursor-pointer' : ''}`}
+                style={{ opacity: isPhotoZoomed ? 0 : 1 }}
+                onClick={(e) => {
+                  if (resolvedPhoto) {
+                    e.stopPropagation();
+                    setIsPhotoZoomed(!isPhotoZoomed);
+                  }
+                }}
+              >
+                {resolvedPhoto ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={resolvedPhoto} alt={profile.full_name} />
+                ) : resolvedGender === 'Female' ? (
+                  <svg className="w-8 h-8 text-brand-orange/85 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
+                    <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                    <path d="M12 1v3M10 2h4" strokeWidth="1" />
+                  </svg>
+                ) : (
+                  <svg className="w-8 h-8 text-brand-volt/85 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
+                    <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                    <path d="M12 4V2" strokeWidth="2" />
+                  </svg>
+                )}
+              </div>
+
+              {/* Zoomed Circular Popover Card (In same place, absolute positioned) */}
+              {isPhotoZoomed && resolvedPhoto && (
+                <div 
+                  className={`whatsapp-avatar active-zoom absolute ${resolvedGender === 'Female' ? 'female' : ''} z-30 cursor-pointer shadow-2xl border-4 border-slate-800/90`}
+                  style={{
+                    width: '180px',
+                    height: '180px',
+                    top: '-66px', // Center vertically over the 48px avatar: (180 - 48)/2 = 66px
+                    left: '0px', // Align with the avatar
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPhotoZoomed(false);
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={resolvedPhoto} alt={profile.full_name} className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
             <div>
               <h1 className="text-2xl md:text-3xl text-3d-gymnation">
                 GYMNATION
               </h1>
-            <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
-              Athlete Portal: <span className="text-white font-extrabold">{profile.full_name}</span> 
-              <span className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-bold uppercase ${profile.status === 'active' ? 'bg-brand-volt/20 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/20 text-rose-400 border border-rose-500/20'}`}>
-                {profile.status}
-              </span>
-            </p>
+              <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                Athlete Portal: <span className="text-white font-extrabold">{profile.full_name}</span> 
+                <span className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-bold uppercase ${profile.status === 'active' ? 'bg-brand-volt/20 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/20 text-rose-400 border border-rose-500/20'}`}>
+                  {profile.status}
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
         <div className="flex w-full sm:w-auto gap-3">
             <button 
               onClick={() => setIsQrOpen(true)}
@@ -868,34 +993,96 @@ export default function AthleteDashboard() {
               </form>
             </div>
 
-            {/* Account Security Module */}
-            <div className="glass-panel p-6 rounded-2xl space-y-5">
-              <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
-                <Sparkles className="w-5 h-5 animate-pulse text-brand-orange" /> ACCOUNT PASSWORD
+            {/* Profile & Security Module */}
+            <div className="glass-panel p-6 rounded-2xl space-y-6">
+              <h3 className="text-xl font-bold tracking-tight text-brand-volt flex items-center gap-2">
+                <Sparkles className="w-5 h-5 animate-pulse text-brand-volt" /> PROFILE & SECURITY
               </h3>
-              <p className="text-xs text-gray-450 leading-relaxed font-sans">
-                Set or update your password to log in directly next time without waiting for a magic link email.
-              </p>
-              <form onSubmit={handleSetPassword} className="space-y-3 pt-2">
-                <input 
-                  type="password" 
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Set New Password" 
-                  required
-                  minLength={6}
-                  className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-orange/50 font-mono" 
-                />
-                <button 
-                  type="submit" 
-                  className="w-full bg-brand-orange/20 hover:bg-brand-orange/30 border border-brand-orange/30 hover:border-brand-orange/50 text-brand-orange font-bold py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all"
-                >
-                  Save Password
-                </button>
-                {passwordStatus && (
-                  <p className="text-center text-xs text-brand-orange font-mono font-bold mt-2">{passwordStatus}</p>
+
+              {/* Profile Photo Section */}
+              <div className="space-y-3 border-b border-gray-800 pb-5">
+                <h4 className="text-xs uppercase tracking-wider text-gray-400 font-mono">Profile Photo</h4>
+                <div className="flex items-center gap-4">
+                  <div className="relative flex items-center justify-center w-12 h-12 select-none">
+                    <div className={`whatsapp-avatar ${resolvedGender === 'Female' ? 'female' : ''}`}>
+                      {photoBase64 || resolvedPhoto ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={photoBase64 || resolvedPhoto || ''} alt="Preview" />
+                      ) : resolvedGender === 'Female' ? (
+                        <svg className="w-8 h-8 text-brand-orange/85 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="8" r="4" fill="rgba(255, 107, 0, 0.1)" />
+                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                          <path d="M12 1v3M10 2h4" strokeWidth="1" />
+                        </svg>
+                      ) : (
+                        <svg className="w-8 h-8 text-brand-volt/85 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="8" r="4" fill="rgba(212, 255, 0, 0.1)" />
+                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                          <path d="M12 4V2" strokeWidth="2" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                      id="athlete-photo-upload"
+                    />
+                    <label 
+                      htmlFor="athlete-photo-upload" 
+                      className="inline-block bg-slate-900/60 border border-gray-800 hover:border-brand-volt/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-mono cursor-pointer transition-all"
+                    >
+                      Choose Image
+                    </label>
+                  </div>
+                </div>
+
+                {photoBase64 && (
+                  <form onSubmit={handlePhotoUpload} className="pt-2">
+                    <button 
+                      type="submit" 
+                      className="w-full bg-brand-volt/20 hover:bg-brand-volt/30 border border-brand-volt/30 hover:border-brand-volt/50 text-brand-volt font-bold py-2 rounded-xl text-xs tracking-wider uppercase transition-all"
+                    >
+                      Upload Picture
+                    </button>
+                  </form>
                 )}
-              </form>
+                
+                {photoStatus && (
+                  <p className="text-center text-xs text-brand-volt font-mono font-bold mt-2">{photoStatus}</p>
+                )}
+              </div>
+
+              {/* Password setup */}
+              <div className="space-y-3">
+                <h4 className="text-xs uppercase tracking-wider text-gray-400 font-mono">Account Password</h4>
+                <p className="text-xs text-gray-450 leading-relaxed font-sans">
+                  Set or update your password to log in directly next time without waiting for a magic link email.
+                </p>
+                <form onSubmit={handleSetPassword} className="space-y-3 pt-1">
+                  <input 
+                    type="password" 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Set New Password" 
+                    required
+                    minLength={6}
+                    className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-orange/50 font-mono" 
+                  />
+                  <button 
+                    type="submit" 
+                    className="w-full bg-brand-orange/20 hover:bg-brand-orange/30 border border-brand-orange/30 hover:border-brand-orange/50 text-brand-orange font-bold py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all"
+                  >
+                    Save Password
+                  </button>
+                  {passwordStatus && (
+                    <p className="text-center text-xs text-brand-orange font-mono font-bold mt-2">{passwordStatus}</p>
+                  )}
+                </form>
+              </div>
             </div>
 
           </div>
