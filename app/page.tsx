@@ -1353,13 +1353,57 @@ export default function MasterSequence() {
                       placeholder="Write training/diet suggestions (e.g. Cardio 20 mins, maintain protein goal...)" 
                       className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-brand-orange/50 h-28 text-sm leading-relaxed"
                     />
-                    <button 
-                      type="button" 
-                      onClick={handleSaveSuggestions} 
-                      className="w-full bg-brand-orange hover:bg-brand-orange/95 text-black font-extrabold py-3 rounded-lg transition-all uppercase tracking-widest text-xs tracking-wider"
-                    >
-                      Save Suggestions
-                    </button>
+
+                    {/* Presets */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "Calorie Deficit",
+                        "Bulk Phase",
+                        "20m Cardio Post-Workout",
+                        "3L Water Daily",
+                        "High Protein Intake",
+                        "Rest 48h Between Legs"
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            const separator = ownerSuggestion.trim() ? "\n" : "";
+                            setOwnerSuggestion(ownerSuggestion + separator + "• " + preset);
+                          }}
+                          className="text-[9px] bg-slate-900 border border-slate-800 hover:border-brand-orange/30 hover:text-brand-orange px-2 py-1 rounded text-gray-400 transition-colors"
+                        >
+                          + {preset}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button 
+                        type="button" 
+                        onClick={handleSaveSuggestions} 
+                        className="flex-1 bg-brand-orange hover:bg-brand-orange/95 text-black font-extrabold py-3 rounded-lg transition-all uppercase tracking-widest text-[11px] tracking-wider"
+                      >
+                        Save Suggestions
+                      </button>
+                      
+                      {/* WhatsApp Share */}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const phone = selectedAthlete.phone_number.replace(/\D/g, "");
+                          const text = encodeURIComponent(`Hello ${selectedAthlete.full_name},\n\nHere is your trainer suggestion from GYMNATION:\n\n${ownerSuggestion}`);
+                          window.open(`https://wa.me/${phone.startsWith("91") ? phone : "91" + phone}?text=${text}`, "_blank");
+                        }}
+                        disabled={!ownerSuggestion.trim()}
+                        className="px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-lg transition-colors flex items-center justify-center cursor-pointer"
+                        title="Share suggestions via WhatsApp"
+                      >
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.019 14.12 1.01 11.5 1.01c-5.448 0-9.88 4.37-9.884 9.8.002 2.03.543 4.022 1.568 5.793l-.993 3.634 3.756-.989zM15.8 12.9c-.2-.1-1.2-.6-1.39-.7-.19-.07-.32-.1-.45.1-.13.19-.5.6-.61.7-.1.1-.2.1-.4 0-.67-.3-1.28-.6-1.88-1.1-.47-.4-.78-.9-.88-1.1-.1-.2 0-.3.1-.4.07-.07.15-.17.22-.25.08-.07.1-.13.15-.22.05-.1.02-.18 0-.25-.03-.07-.45-1.08-.62-1.48-.17-.4-.36-.34-.5-.34s-.3-.02-.45-.02-.4.06-.6.27c-.2.2-.8.78-.8 1.9s.82 2.2 1 2.3c.18.18 3.2 4.9 7.8 6.9 1.1.5 1.9.8 2.6 1 .9.3 1.7.2 2.3.1.7-.1 1.39-.6 1.59-1.1.2-.6.2-1.1.1-1.2-.07-.1-.2-.2-.4-.3z"/>
+                        </svg>
+                      </button>
+                    </div>
                     {saveSuggestionStatus && <p className="text-center mt-2 text-emerald-400 font-bold text-sm font-mono">{saveSuggestionStatus}</p>}
                   </div>
                 </div>

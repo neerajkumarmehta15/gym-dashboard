@@ -499,9 +499,23 @@ export default function AthleteDashboard() {
 
             {/* Coach Recommendation Module */}
             <div className="glass-panel p-6 rounded-2xl space-y-4 border border-brand-orange/30 bg-brand-orange/5">
-              <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-brand-orange animate-pulse" /> COACH RECOMMENDATION
-              </h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold tracking-tight text-brand-orange flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-brand-orange animate-pulse" /> COACH RECOMMENDATION
+                </h3>
+                {profile?.suggestions && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(profile.suggestions || "");
+                      alert("Copied suggestions to clipboard! 📋");
+                    }}
+                    className="text-[10px] font-mono text-brand-orange hover:underline font-bold uppercase tracking-wider cursor-pointer"
+                    title="Copy Recommendations"
+                  >
+                    Copy
+                  </button>
+                )}
+              </div>
               <div className="bg-brand-dark/50 border border-gray-900/60 p-4 rounded-xl">
                 {profile?.suggestions ? (
                   <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line font-sans">
