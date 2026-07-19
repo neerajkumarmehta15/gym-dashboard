@@ -3,14 +3,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Lock, UserPlus, ArrowLeft } from 'lucide-react';
+import { ArrowRight, Lock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AthleteLogin() {
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [credential, setCredential] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -18,6 +15,13 @@ export default function AthleteLogin() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // Check custom direct session first
+      if (typeof window !== 'undefined' && localStorage.getItem('athlete_logged_id')) {
+        router.push('/athlete/dashboard');
+        return;
+      }
+      
+      // Fallback: Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         router.push('/athlete/dashboard');
@@ -27,94 +31,62 @@ export default function AthleteLogin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleSignIn(e: React.FormEvent) {
+  async function handleDirectLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-
-    setLoading(false);
-    if (error) {
-      setErrorMsg(error.message);
-    } else {
-      router.push('/athlete/dashboard');
-    }
-  }
-
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    // 1. Perform Supabase Sign Up (store full name in user metadata)
-    const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: {
-          full_name: fullName
-        }
-      }
-    });
-
-    if (error) {
+    const searchVal = credential.trim();
+    if (!searchVal) {
+      setErrorMsg('Please enter your email or mobile number.');
       setLoading(false);
-      const isAlreadyRegistered = error.message?.toLowerCase().includes('already registered') || 
-                                  error.message?.toLowerCase().includes('already exists') ||
-                                  error.status === 422;
-      
-      if (isAlreadyRegistered) {
-        setErrorMsg('An account with this email is already registered. Please sign in below using your password.');
-        setAuthMode('signin');
-      } else {
-        setErrorMsg(error.message);
-      }
       return;
     }
 
-    // 2. Automatically register the athlete in the 'members' table
-    const insertData = {
-      full_name: fullName,
-      status: 'active',
-      joined_date: new Date().toISOString().split('T')[0]
-    };
+    try {
+      // 1. Try matching by email
+      const { data: emailMatch, error: emailError } = await supabase
+        .from('members')
+        .select('*')
+        .eq('email', searchVal)
+        .maybeSingle();
 
-    // Try inserting with email first. If column doesn't exist, retry without email
-    let { error: insertError } = await supabase
-      .from('members')
-      .insert([{ ...insertData, email }]);
+      if (emailError) {
+        throw new Error(emailError.message);
+      }
 
-    if (insertError) {
-      const isColumnError = insertError.message?.toLowerCase().includes('email') || 
-                            insertError.message?.toLowerCase().includes('column') ||
-                            insertError.code === '42703';
-      
-      if (isColumnError) {
-        const { error: retryError } = await supabase
+      let matchedMember = emailMatch;
+
+      // 2. Try matching by phone_number if no email match
+      if (!matchedMember) {
+        const { data: phoneMatch, error: phoneError } = await supabase
           .from('members')
-          .insert([insertData]);
-        insertError = retryError;
+          .select('*')
+          .eq('phone_number', searchVal)
+          .maybeSingle();
+        
+        if (phoneError) {
+          throw new Error(phoneError.message);
+        }
+        matchedMember = phoneMatch;
       }
-    }
 
-    setLoading(false);
-    if (insertError) {
-      setErrorMsg(`Account created, but database profile setup failed: ${insertError.message}`);
-    } else {
-      if (data?.session) {
-        setSuccessMsg('Account registered successfully! Redirecting...');
-        setTimeout(() => router.push('/athlete/dashboard'), 1500);
+      if (matchedMember) {
+        // Save the direct athlete ID in localStorage
+        localStorage.setItem('athlete_logged_id', matchedMember.id);
+        setSuccessMsg(`Welcome back, ${matchedMember.full_name}! Accessing portal...`);
+        setTimeout(() => {
+          router.push('/athlete/dashboard');
+        }, 1200);
       } else {
-        setSuccessMsg('Sign up successful! Please log in using your password.');
-        setAuthMode('signin');
-        setPassword('');
+        setErrorMsg('No athlete record found. Please verify with your gym owner.');
+        setLoading(false);
       }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Verification failed. Please try again.';
+      setErrorMsg(errorMessage);
+      setLoading(false);
     }
   }
 
@@ -132,7 +104,7 @@ export default function AthleteLogin() {
       <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
         <div className="flex justify-center mb-6">
           <div className="p-3 bg-brand-volt/10 text-brand-volt rounded-2xl glow-btn-volt border border-brand-volt/20">
-            {authMode === 'signin' ? <Lock className="w-8 h-8" /> : <UserPlus className="w-8 h-8" />}
+            <Lock className="w-8 h-8" />
           </div>
         </div>
 
@@ -143,9 +115,7 @@ export default function AthleteLogin() {
           Athlete Portal
         </p>
         <p className="text-center text-gray-400 text-sm mb-6">
-          {authMode === 'signin' 
-            ? "Sign in directly using your registered account password." 
-            : "Create your athlete password to register your account."}
+          Enter the email address or mobile number registered with your gym membership. No password required.
         </p>
 
         {errorMsg && (
@@ -160,103 +130,26 @@ export default function AthleteLogin() {
           </div>
         )}
         
-        {authMode === 'signin' ? (
-          <form onSubmit={handleSignIn} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Gym Email Address</label>
-              <input 
-                type="email" 
-                placeholder="athlete@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
-                required
-              />
-            </div>
-            <button 
-              disabled={loading} 
-              className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
-            >
-              {loading ? 'Authenticating...' : 'SIGN IN'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleSignUp} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Full Name</label>
-              <input 
-                type="text" 
-                placeholder="John Doe"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-sans"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Gym Email Address</label>
-              <input 
-                type="email" 
-                placeholder="athlete@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Choose Password</label>
-              <input 
-                type="password" 
-                placeholder="Minimum 6 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
-                required
-                minLength={6}
-              />
-            </div>
-            <button 
-              disabled={loading} 
-              className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
-            >
-              {loading ? 'Registering Account...' : 'CREATE ACCOUNT'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        )}
-
-        <div className="text-center mt-6 pt-5 border-t border-slate-800/80">
-          {authMode === 'signin' ? (
-            <button 
-              type="button"
-              onClick={() => { setAuthMode('signup'); setErrorMsg(''); setSuccessMsg(''); }}
-              className="text-xs text-brand-volt font-bold uppercase tracking-widest hover:underline font-mono"
-            >
-              Need an account? Register Here
-            </button>
-          ) : (
-            <button 
-              type="button"
-              onClick={() => { setAuthMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
-              className="text-xs text-brand-volt font-bold uppercase tracking-widest hover:underline font-mono"
-            >
-              Already have an account? Sign In
-            </button>
-          )}
-        </div>
+        <form onSubmit={handleDirectLogin} className="space-y-5">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">Email or Mobile Number</label>
+            <input 
+              type="text" 
+              placeholder="e.g. athlete@gmail.com or 9876543210"
+              value={credential}
+              onChange={(e) => setCredential(e.target.value)}
+              className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-volt/50 transition-colors font-mono"
+              required
+            />
+          </div>
+          <button 
+            disabled={loading} 
+            className="w-full bg-brand-volt hover:bg-brand-volt/95 text-black font-extrabold py-3.5 rounded-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 tracking-widest text-sm font-sans glow-btn-volt"
+          >
+            {loading ? 'Accessing Portal...' : 'ENTER PORTAL'}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
       </div>
     </div>
   );

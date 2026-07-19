@@ -135,25 +135,54 @@ export default function AthleteDashboard() {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Initial check from storage
     const checkSession = async () => {
+      // 1. Check custom direct password-less session first
+      if (typeof window !== 'undefined') {
+        const directId = localStorage.getItem('athlete_logged_id');
+        if (directId) {
+          const { data: profileData } = await supabase
+            .from('members')
+            .select('*')
+            .eq('id', directId)
+            .maybeSingle();
+          
+          if (profileData && isMounted) {
+            setProfile(profileData);
+            fetchAthleteData(profileData.id);
+            setProfileLoading(false);
+            return;
+          } else {
+            localStorage.removeItem('athlete_logged_id');
+          }
+        }
+      }
+
+      // 2. Fallback: Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session && isMounted) {
         setUser(session.user);
         fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
+      } else {
+        setProfileLoading(false);
+        router.push('/athlete');
       }
     };
+
     checkSession();
 
-    // 2. Listen for auth changes (including when the Magic Link tokens in the URL are processed)
+    // Listen for auth changes (if not using direct login)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
+
+      // If we have a direct login, ignore Supabase auth changes/sign outs
+      if (typeof window !== 'undefined' && localStorage.getItem('athlete_logged_id')) {
+        return;
+      }
 
       if (session) {
         setUser(session.user);
         fetchProfile(session.user.email || '', session.user.user_metadata?.full_name || '');
       } else {
-        // Redirect to login if initial session verification completed and no session exists
         if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
           router.push('/athlete');
         }
@@ -292,12 +321,15 @@ export default function AthleteDashboard() {
 
   // Sign out handler
   const handleSignOut = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('athlete_logged_id');
+    }
     supabase.auth.signOut().then(() => {
       router.push('/athlete');
     });
   };
 
-  if (!user || profileLoading) {
+  if ((!user && !profile) || profileLoading) {
     return (
       <div className="min-h-screen bg-brand-dark flex items-center justify-center font-sans text-brand-volt">
         <div className="flex flex-col items-center gap-4">
@@ -315,7 +347,7 @@ export default function AthleteDashboard() {
           <div className="w-16 h-16 bg-brand-orange/20 border border-brand-orange text-brand-orange rounded-full flex items-center justify-center mx-auto text-3xl">⚠️</div>
           <h2 className="text-2xl font-black tracking-tight uppercase">Profile Unregistered</h2>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Your email <span className="text-white font-mono">{user?.email}</span> is authenticated, but it has not been linked to a member record in the gym&apos;s database.
+            Your account (<span className="text-white font-mono">{user?.email || 'credential'}</span>) is authenticated, but it has not been linked to a member record in the gym&apos;s database.
           </p>
           <p className="text-brand-volt text-xs font-bold uppercase tracking-widest leading-relaxed">
             Please ask the gym administrator or owner to add your email address to your profile in the CRM dashboard.
