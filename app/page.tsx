@@ -705,12 +705,28 @@ export default function MasterSequence() {
     if (!selectedAthlete) return;
 
     setAssignStatus("Assigning to Matrix...");
+    
+    const trimmedWeight = assignWeight.trim();
+    const isSimpleNumber = /^\d+(\.\d+)?$/.test(trimmedWeight);
+    let finalExName = assignEx;
+    let finalWeight = 0;
+
+    if (isSimpleNumber) {
+      finalWeight = parseFloat(trimmedWeight);
+    } else {
+      const hasNumbers = /\d/.test(trimmedWeight);
+      const suffix = hasNumbers ? ` (${trimmedWeight} kg)` : ` (${trimmedWeight})`;
+      const match = trimmedWeight.match(/\d+(\.\d+)?/);
+      finalWeight = match ? parseFloat(match[0]) : 0;
+      finalExName = `${assignEx}${suffix}`;
+    }
+
     const { error } = await supabase.from("workouts").insert([{ 
       member_name: selectedAthlete.full_name,
-      exercise_name: assignEx, 
+      exercise_name: finalExName, 
       sets: parseInt(assignSets), 
       reps: parseInt(assignReps), 
-      weight_kg: parseFloat(assignWeight) 
+      weight_kg: finalWeight 
     }]);
 
     if (!error) {
@@ -1440,7 +1456,7 @@ export default function MasterSequence() {
                     <div className="flex gap-4">
                       <input type="number" required value={assignSets} onChange={(e) => setAssignSets(e.target.value)} placeholder="Sets" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
                       <input type="number" required value={assignReps} onChange={(e) => setAssignReps(e.target.value)} placeholder="Reps" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
-                      <input type="number" required step="0.5" value={assignWeight} onChange={(e) => setAssignWeight(e.target.value)} placeholder="Weight (kg)" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
+                      <input type="text" required value={assignWeight} onChange={(e) => setAssignWeight(e.target.value)} placeholder="Weight (e.g. 40-60)" className="w-1/3 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:outline-none" />
                     </div>
                     <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors uppercase tracking-widest text-sm mt-2">Push to Athlete Portal</button>
                     {assignStatus && <p className="text-center mt-2 text-emerald-400 font-bold text-sm">{assignStatus}</p>}

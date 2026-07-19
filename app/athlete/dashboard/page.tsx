@@ -203,12 +203,27 @@ export default function AthleteDashboard() {
     if (!profile) return;
     setWorkoutStatus('Logging lift...');
 
+    const trimmedWeight = weight.trim();
+    const isSimpleNumber = /^\d+(\.\d+)?$/.test(trimmedWeight);
+    let finalExName = exercise;
+    let finalWeight = 0;
+
+    if (isSimpleNumber) {
+      finalWeight = parseFloat(trimmedWeight);
+    } else {
+      const hasNumbers = /\d/.test(trimmedWeight);
+      const suffix = hasNumbers ? ` (${trimmedWeight} kg)` : ` (${trimmedWeight})`;
+      const match = trimmedWeight.match(/\d+(\.\d+)?/);
+      finalWeight = match ? parseFloat(match[0]) : 0;
+      finalExName = `${exercise}${suffix}`;
+    }
+
     const { error } = await supabase.from('workouts').insert([{
       member_name: profile.full_name,
-      exercise_name: exercise,
+      exercise_name: finalExName,
       sets: parseInt(sets),
       reps: parseInt(reps),
-      weight_kg: parseFloat(weight)
+      weight_kg: finalWeight
     }]);
 
     if (!error) {
@@ -818,13 +833,12 @@ export default function AthleteDashboard() {
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase font-mono tracking-widest font-bold">Weight (kg)</label>
                   <input 
-                    type="number" 
-                    step="0.5"
+                    type="text" 
                     value={weight} 
                     onChange={(e) => setWeight(e.target.value)} 
                     required 
-                    placeholder="60"
-                    className="w-full bg-brand-dark/80 border border-gray-850 rounded-xl px-3 py-3 text-sm text-white text-center font-mono" 
+                    placeholder="e.g. 60 or 40-60"
+                    className="w-full bg-brand-dark/80 border border-gray-850 rounded-xl px-3 py-3 text-sm text-white text-center font-sans" 
                   />
                 </div>
               </div>
