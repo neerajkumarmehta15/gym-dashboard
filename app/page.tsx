@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings, QrCode } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import MetricsCard from '../components/MetricsCard';
-import ManagePlansModal from '../components/ManagePlansModal';
-import AddMemberModal from '../components/AddMemberModal';
-import AthleteDossierModal from '../components/AthleteDossierModal';
+
+const ManagePlansModal = dynamic(() => import('../components/ManagePlansModal'), { ssr: false });
+const AddMemberModal = dynamic(() => import('../components/AddMemberModal'), { ssr: false });
+const AthleteDossierModal = dynamic(() => import('../components/AthleteDossierModal'), { ssr: false });
 
 interface MemberData {
   id: string;
