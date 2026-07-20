@@ -11,6 +11,7 @@ import MetricsCard from '../components/MetricsCard';
 const ManagePlansModal = dynamic(() => import('../components/ManagePlansModal'), { ssr: false });
 const AddMemberModal = dynamic(() => import('../components/AddMemberModal'), { ssr: false });
 const AthleteDossierModal = dynamic(() => import('../components/AthleteDossierModal'), { ssr: false });
+const TechkritiGalaxyCanvas = dynamic(() => import('../components/TechkritiGalaxyCanvas'), { ssr: false });
 
 interface MemberData {
   id: string;
@@ -759,12 +760,8 @@ export default function MasterSequence() {
   if (authStatus === 'guest') {
     return (
       <div className="min-h-screen bg-brand-dark text-gray-100 p-6 font-sans relative overflow-hidden flex flex-col justify-between">
-        {/* Animated Cosmic Spiral Galaxy Background */}
-        <div className="galaxy-bg-wrapper">
-          <div className="galaxy-spiral" />
-          <div className="galaxy-core" />
-          <div className="star-field" />
-        </div>
+        {/* 3D Techkriti Rotating Star Particle Galaxy Background */}
+        <TechkritiGalaxyCanvas />
 
         {/* ambient glows */}
         <div className="absolute top-[-10%] left-[-15%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
