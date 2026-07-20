@@ -795,13 +795,6 @@ export default function MasterSequence() {
 
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-slate-900 pb-5 relative z-10">
         <div className="flex items-center gap-3.5">
-          <button 
-            onClick={() => window.history.back()} 
-            className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-brand-orange/40 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
-            title="Go Back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
           <div>
             <h1 
               onClick={() => window.location.reload()}
@@ -814,7 +807,6 @@ export default function MasterSequence() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
-          <button onClick={() => router.push('/scanner')} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-volt/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono text-brand-volt transition-all"><QrCode className="w-3.5 h-3.5" /> Scanner</button>
           <button onClick={() => setIsPlansModalOpen(true)} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-orange/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans text-white transition-all"><Settings className="w-3.5 h-3.5" /> Plans</button>
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 bg-brand-volt text-black font-extrabold px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans transition-all glow-btn-volt"><UserPlus className="w-3.5 h-3.5" /> Add Member</button>
           <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); window.location.href = '/'; } }} className="flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl text-xs uppercase tracking-wider font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
