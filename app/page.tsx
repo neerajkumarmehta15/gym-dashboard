@@ -842,6 +842,7 @@ export default function MasterSequence() {
                 const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
                 resolvedGender = localGenders[member.id] || 'Male';
               }
+              resolvedGender = resolvedGender.split('|')[0] || 'Male';
               
               // Resolve photo
               let resolvedPhoto = member.photo || null;

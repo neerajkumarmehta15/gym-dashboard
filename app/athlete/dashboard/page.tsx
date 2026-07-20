@@ -110,9 +110,9 @@ export default function AthleteDashboard() {
 
   const [nutritionStatus, setNutritionStatus] = useState('');
 
-  // Password Setup state
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordStatus, setPasswordStatus] = useState('');
+  // 4-Digit PIN Security state
+  const [newPin, setNewPin] = useState('');
+  const [pinStatus, setPinStatus] = useState('');
 
   // Profile Picture state
   const [photoBase64, setPhotoBase64] = useState('');
@@ -559,20 +559,88 @@ export default function AthleteDashboard() {
     }
   }
 
-  async function handleSetPassword(e: React.FormEvent) {
+  async function handleSavePin(e: React.FormEvent) {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setPasswordStatus('Password must be at least 6 characters.');
+    if (!profile) return;
+
+    const cleanPin = newPin.trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      setPinStatus('PIN must be exactly 4 numeric digits.');
       return;
     }
-    setPasswordStatus('Saving password...');
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    setPinStatus('Saving PIN security settings...');
+
+    // Extract base gender ('Male' or 'Female')
+    let currentRawGender = profile.gender || 'Male';
+    if (typeof window !== 'undefined' && !profile.gender) {
+      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+      currentRawGender = localGenders[profile.id] || 'Male';
+    }
+    const baseGender = currentRawGender.split('|')[0] || 'Male';
+    const updatedGenderField = `${baseGender}|${cleanPin}`;
+
+    // 1. Update Supabase Database
+    const { error } = await supabase
+      .from('members')
+      .update({ gender: updatedGenderField })
+      .eq('id', profile.id);
+
     if (error) {
-      setPasswordStatus(`Error: ${error.message}`);
+      setPinStatus(`Database Error: ${error.message}`);
     } else {
-      setPasswordStatus('Password set successfully! ✅');
-      setNewPassword('');
-      setTimeout(() => setPasswordStatus(''), 3000);
+      // 2. Update Local Storage Fallbacks
+      if (typeof window !== 'undefined') {
+        const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+        localGenders[profile.id] = updatedGenderField;
+        localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
+
+        const updatedProfile = { ...profile, gender: updatedGenderField };
+        localStorage.setItem('athlete_profile', JSON.stringify(updatedProfile));
+      }
+
+      // 3. Update local state
+      setProfile(prev => prev ? { ...prev, gender: updatedGenderField } : null);
+      setNewPin('');
+      setPinStatus('4-Digit PIN Saved & Activated! 🔒');
+      showToast('4-Digit PIN Security Activated!');
+      setTimeout(() => setPinStatus(''), 3500);
+    }
+  }
+
+  async function handleRemovePin() {
+    if (!profile) return;
+    setPinStatus('Removing PIN security...');
+
+    let currentRawGender = profile.gender || 'Male';
+    if (typeof window !== 'undefined' && !profile.gender) {
+      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+      currentRawGender = localGenders[profile.id] || 'Male';
+    }
+    const baseGender = currentRawGender.split('|')[0] || 'Male';
+
+    const { error } = await supabase
+      .from('members')
+      .update({ gender: baseGender })
+      .eq('id', profile.id);
+
+    if (error) {
+      setPinStatus(`Database Error: ${error.message}`);
+    } else {
+      if (typeof window !== 'undefined') {
+        const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+        localGenders[profile.id] = baseGender;
+        localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
+
+        const updatedProfile = { ...profile, gender: baseGender };
+        localStorage.setItem('athlete_profile', JSON.stringify(updatedProfile));
+      }
+
+      setProfile(prev => prev ? { ...prev, gender: baseGender } : null);
+      setNewPin('');
+      setPinStatus('PIN Security Disabled');
+      showToast('PIN Security Disabled');
+      setTimeout(() => setPinStatus(''), 3500);
     }
   }
 
@@ -683,12 +751,15 @@ export default function AthleteDashboard() {
   }));
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
 
-  // Resolve gender
-  let resolvedGender = profile?.gender || 'Male';
+  // Resolve gender and PIN
+  let rawGender = profile?.gender || 'Male';
   if (typeof window !== 'undefined' && profile?.id && !profile?.gender) {
     const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-    resolvedGender = localGenders[profile.id] || 'Male';
+    rawGender = localGenders[profile.id] || 'Male';
   }
+  const genderParts = rawGender.split('|');
+  const resolvedGender = genderParts[0] || 'Male';
+  const currentPin = genderParts[1] || null;
 
   // Resolve photo
   let resolvedPhoto = profile?.photo || null;
@@ -1145,30 +1216,60 @@ export default function AthleteDashboard() {
                 )}
               </div>
 
-              {/* Password setup */}
+              {/* 4-Digit Security PIN Section */}
               <div className="space-y-3">
-                <h4 className="text-xs uppercase tracking-wider text-gray-400 font-mono">Account Password</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs uppercase tracking-wider text-gray-400 font-mono">4-Digit Security PIN</h4>
+                  {currentPin ? (
+                    <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      🔒 PIN Active
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-800 text-slate-400 font-mono px-2.5 py-0.5 rounded-full">
+                      No PIN Set
+                    </span>
+                  )}
+                </div>
+                
                 <p className="text-xs text-gray-450 leading-relaxed font-sans">
-                  Set or update your password to log in directly next time without waiting for a magic link email.
+                  Set a 4-digit PIN for extra portal security. When enabled, you will be prompted to verify your 4-digit PIN after login.
                 </p>
-                <form onSubmit={handleSetPassword} className="space-y-3 pt-1">
-                  <input 
-                    type="password" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Set New Password" 
-                    required
-                    minLength={6}
-                    className="w-full bg-brand-dark/60 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-orange/50 font-mono" 
-                  />
-                  <button 
-                    type="submit" 
-                    className="w-full bg-brand-orange/20 hover:bg-brand-orange/30 border border-brand-orange/30 hover:border-brand-orange/50 text-brand-orange font-bold py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all"
-                  >
-                    Save Password
-                  </button>
-                  {passwordStatus && (
-                    <p className="text-center text-xs text-brand-orange font-mono font-bold mt-2">{passwordStatus}</p>
+
+                <form onSubmit={handleSavePin} className="space-y-3 pt-1">
+                  <div className="flex gap-2">
+                    <input 
+                      type="password" 
+                      value={newPin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').substring(0, 4);
+                        setNewPin(val);
+                      }}
+                      placeholder={currentPin ? "•••• (New PIN)" : "Enter 4-Digit PIN"} 
+                      maxLength={4}
+                      pattern="\d{4}"
+                      className="flex-1 bg-brand-dark/60 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-volt/50 font-mono text-center tracking-widest text-base" 
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={newPin.length !== 4}
+                      className="bg-brand-volt/20 hover:bg-brand-volt/30 disabled:opacity-40 border border-brand-volt/30 hover:border-brand-volt/50 text-brand-volt font-bold px-4 py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all whitespace-nowrap cursor-pointer"
+                    >
+                      {currentPin ? 'Update PIN' : 'Save PIN'}
+                    </button>
+                  </div>
+
+                  {currentPin && (
+                    <button 
+                      type="button" 
+                      onClick={handleRemovePin}
+                      className="w-full text-center text-xs font-mono text-rose-400 hover:text-rose-300 py-1 hover:underline transition-all cursor-pointer"
+                    >
+                      Remove PIN Security
+                    </button>
+                  )}
+
+                  {pinStatus && (
+                    <p className="text-center text-xs text-brand-volt font-mono font-bold mt-2">{pinStatus}</p>
                   )}
                 </form>
               </div>
