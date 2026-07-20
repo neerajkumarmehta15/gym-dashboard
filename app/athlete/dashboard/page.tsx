@@ -837,14 +837,6 @@ export default function AthleteDashboard() {
         {/* Header */}
         <header className="glass-panel p-5 md:p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3.5">
-            <button 
-              onClick={handleSignOut} 
-              className="p-2.5 bg-slate-900/60 border border-gray-800 hover:border-rose-500/40 rounded-xl text-gray-400 hover:text-rose-450 hover:bg-rose-500/5 transition-all duration-200"
-              title="Log Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-            
             {/* Athlete Avatar with In-Place Zoom */}
             <div className="relative flex items-center justify-center w-12 h-12 select-none">
               <div 
@@ -924,12 +916,12 @@ export default function AthleteDashboard() {
               </div>
             </div>
           </div>
-        <div className="flex w-full sm:w-auto gap-3">
+          <div className="flex w-full sm:w-auto gap-3">
             <button 
-              onClick={() => setIsQrOpen(true)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/30 hover:text-brand-volt px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+              onClick={handleSignOut}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-900/60 border border-gray-800 hover:border-rose-500/40 hover:text-rose-400 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-slate-300 transition-all cursor-pointer"
             >
-              <QrCode className="w-4 h-4" /> Check In QR
+              <LogOut className="w-4 h-4 text-rose-450" /> Logout
             </button>
           </div>
         </header>
