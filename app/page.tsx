@@ -759,9 +759,16 @@ export default function MasterSequence() {
   if (authStatus === 'guest') {
     return (
       <div className="min-h-screen bg-brand-dark text-gray-100 p-6 font-sans relative overflow-hidden flex flex-col justify-between">
+        {/* Animated Cosmic Spiral Galaxy Background */}
+        <div className="galaxy-bg-wrapper">
+          <div className="galaxy-spiral" />
+          <div className="galaxy-core" />
+          <div className="star-field" />
+        </div>
+
         {/* ambient glows */}
-        <div className="absolute top-[-10%] left-[-15%] w-[500px] h-[500px] bg-brand-orange/5 blur-[120px] rounded-full pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] right-[-15%] w-[500px] h-[500px] bg-brand-volt/5 blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="absolute top-[-10%] left-[-15%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+        <div className="absolute bottom-[-10%] right-[-15%] w-[500px] h-[500px] bg-brand-volt/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
 
         {/* Top Header / Brand */}
         <header className="max-w-6xl w-full mx-auto flex justify-center items-center py-4 border-b border-slate-900 relative z-10">
