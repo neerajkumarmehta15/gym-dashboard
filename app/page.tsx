@@ -205,7 +205,9 @@ export default function MasterSequence() {
     setIsSyncing(true);
 
     let session = passedSession;
-    if (!session) {
+    const isDirectOwnerActive = typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') === 'true';
+
+    if (!session && !isDirectOwnerActive) {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (!currentSession) {
         setAuthStatus('guest');
@@ -216,8 +218,8 @@ export default function MasterSequence() {
     }
 
     // Check if the logged-in user is an athlete
-    const userEmail = session.user.email || '';
-    const userFullName = session.user.user_metadata?.full_name || '';
+    const userEmail = session?.user?.email || '';
+    const userFullName = session?.user?.user_metadata?.full_name || '';
 
     // Parallelize the athlete check and the owner metrics/CRM data fetch to eliminate sequential network waterfall.
     const checkAthletePromise = (async () => {
