@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings, Download } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import MetricsCard from '../components/MetricsCard';
 
@@ -619,6 +619,50 @@ export default function MasterSequence() {
     setIsSubModalOpen(true);
   }
 
+  function exportMembersToCSV() {
+    if (members.length === 0) {
+      alert('No member data available to export.');
+      return;
+    }
+
+    const headers = ['Full Name', 'Phone Number', 'Email', 'Gender', 'Status', 'Joined Date', 'Expiry Date', 'Days Left'];
+    
+    const csvRows = members.map(m => {
+      let resolvedGender = m.gender || 'Male';
+      if (typeof window !== 'undefined' && !m.gender) {
+        const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
+        resolvedGender = localGenders[m.id] || 'Male';
+      }
+      resolvedGender = resolvedGender.split('|')[0] || 'Male';
+
+      const cleanPhone = `"${m.phone_number.replace(/"/g, '""')}"`;
+      const cleanName = `"${m.full_name.replace(/"/g, '""')}"`;
+      const cleanEmail = `"${(m.email || 'N/A').replace(/"/g, '""')}"`;
+      const joined = formatDate(m.joined_date);
+      const expiry = m.end_date ? formatDate(m.end_date) : 'N/A';
+
+      return [
+        cleanName,
+        cleanPhone,
+        cleanEmail,
+        resolvedGender,
+        m.status.toUpperCase(),
+        joined,
+        expiry,
+        m.days_left || 0
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...csvRows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `GYMNATION_Members_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   function sendWhatsAppReminder(member: MemberData) {
     const message = encodeURIComponent(`Hi ${member.full_name}, 👋 this is a friendly reminder from GYMNATION. Your membership ${(member.days_left || 0) > 0 ? `expires in ${member.days_left} days on ${formatDate(member.end_date)}` : 'has expired'}. Please renew your plan today to keep your fitness goals on track! Thank you.`);
     const phone = member.phone_number.replace(/\D/g, '');
@@ -816,6 +860,13 @@ export default function MasterSequence() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
+          <button 
+            onClick={exportMembersToCSV}
+            className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-cyan/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono text-brand-cyan transition-all cursor-pointer"
+            title="Export Members Database to Excel/CSV"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
           {(expiringSoonMembers.length > 0 || expiredMembers.length > 0) && (
             <button 
               onClick={() => setIsBatchWhatsAppOpen(true)} 

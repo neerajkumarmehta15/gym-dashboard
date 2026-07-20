@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, ClipboardList, CheckCircle, Sparkles, CreditCard, Shield, Printer } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -96,6 +96,7 @@ export default function AthleteDashboard() {
   // Modals state
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
+  const [isDigitalBadgeOpen, setIsDigitalBadgeOpen] = useState(false);
 
   // Forms state
   const [exercise, setExercise] = useState('');
@@ -919,7 +920,13 @@ export default function AthleteDashboard() {
               </div>
             </div>
           </div>
-          <div className="flex w-full sm:w-auto gap-3">
+          <div className="flex w-full sm:w-auto gap-2.5">
+            <button 
+              onClick={() => setIsDigitalBadgeOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/40 hover:text-brand-volt px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-slate-300 transition-all cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4 text-brand-volt" /> Digital Badge
+            </button>
             <button 
               onClick={handleSignOut}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-900/60 border border-gray-800 hover:border-rose-500/40 hover:text-rose-400 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-slate-300 transition-all cursor-pointer"
@@ -1504,6 +1511,81 @@ export default function AthleteDashboard() {
                 <p className="text-center font-bold text-xs text-emerald-400 mt-3 font-mono">{nutritionStatus}</p>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- DIGITAL ATHLETE VIP BADGE MODAL --- */}
+      {isDigitalBadgeOpen && profile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div className="glass-modal w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-brand-volt/40 text-center font-sans overflow-hidden">
+            {/* Ambient Card Background Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-volt/10 blur-2xl rounded-full pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-orange/10 blur-2xl rounded-full pointer-events-none" />
+
+            <button 
+              onClick={() => setIsDigitalBadgeOpen(false)} 
+              className="absolute top-4 right-4 p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-slate-900 transition-colors z-20"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Badge Brand Header */}
+            <div className="text-center mb-5 border-b border-slate-800 pb-4">
+              <h2 className="text-2xl text-3d-gymnation tracking-wider">GYMNATION</h2>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-brand-volt bg-brand-volt/10 border border-brand-volt/20 px-2.5 py-0.5 rounded-full font-extrabold inline-block mt-1">
+                VIP ATHLETE MEMBERSHIP CARD
+              </span>
+            </div>
+
+            {/* Athlete Photo Avatar */}
+            <div className="flex justify-center mb-4">
+              <div className="whatsapp-avatar w-24 h-24 border-4 border-brand-volt/50 shadow-2xl rounded-full overflow-hidden bg-slate-900 flex items-center justify-center">
+                {resolvedPhoto ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={resolvedPhoto} alt={profile.full_name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl font-extrabold text-brand-volt">{profile.full_name.charAt(0)}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Athlete Details */}
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-xl font-extrabold text-white tracking-wide uppercase">{profile.full_name}</h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{profile.phone_number}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-slate-950/80 border border-slate-850 p-3 rounded-2xl text-left select-none text-xs">
+                <div>
+                  <span className="text-[10px] text-gray-500 font-mono uppercase block">Status</span>
+                  <span className={`font-extrabold uppercase ${profile.status === 'active' ? 'text-brand-volt' : 'text-rose-400'}`}>{profile.status}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-mono uppercase block">Security PIN</span>
+                  <span className="font-mono text-gray-300 font-bold flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-brand-orange" /> {profile.pin ? '••••' : 'No PIN'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-mono uppercase block">Plan</span>
+                  <span className="font-bold text-gray-200">{subscription ? subscription.planName : 'Standard'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-mono uppercase block">Expiry Date</span>
+                  <span className="font-bold text-gray-200">{subscription ? formatDate(subscription.endDate) : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Print / Save Card Button */}
+            <button
+              onClick={() => window.print()}
+              className="w-full mt-5 bg-gradient-to-r from-brand-volt to-yellow-400 text-black font-extrabold py-3 rounded-xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 glow-btn-volt transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" /> Print / Save Pass
+            </button>
           </div>
         </div>
       )}
