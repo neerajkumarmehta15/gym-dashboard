@@ -132,6 +132,8 @@ export default function MasterSequence() {
   const [editPhotoBase64, setEditPhotoBase64] = useState('');
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [isBatchWhatsAppOpen, setIsBatchWhatsAppOpen] = useState(false);
+  const [sentWhatsAppIds, setSentWhatsAppIds] = useState<string[]>([]);
   const [subMemberId, setSubMemberId] = useState('');
   const [subMemberName, setSubMemberName] = useState('');
   const [subPlanId, setSubPlanId] = useState('');
@@ -617,6 +619,14 @@ export default function MasterSequence() {
     setIsSubModalOpen(true);
   }
 
+  function sendWhatsAppReminder(member: MemberData) {
+    const message = encodeURIComponent(`Hi ${member.full_name}, 👋 this is a friendly reminder from GYMNATION. Your membership ${(member.days_left || 0) > 0 ? `expires in ${member.days_left} days on ${formatDate(member.end_date)}` : 'has expired'}. Please renew your plan today to keep your fitness goals on track! Thank you.`);
+    const phone = member.phone_number.replace(/\D/g, '');
+    const cleanPhone = phone.length === 10 ? `91${phone}` : phone;
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+    setSentWhatsAppIds(prev => Array.from(new Set([...prev, member.id])));
+  }
+
   function triggerExpiryAlert(member: MemberData) {
     setAlertMember(member);
     setIsAlertModalOpen(true);
@@ -806,6 +816,14 @@ export default function MasterSequence() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
+          {(expiringSoonMembers.length > 0 || expiredMembers.length > 0) && (
+            <button 
+              onClick={() => setIsBatchWhatsAppOpen(true)} 
+              className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans font-bold transition-all cursor-pointer"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" /> Auto WhatsApp ({expiringSoonMembers.length + expiredMembers.length})
+            </button>
+          )}
           <button onClick={() => setIsPlansModalOpen(true)} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-orange/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans text-white transition-all"><Settings className="w-3.5 h-3.5" /> Plans</button>
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 bg-brand-volt text-black font-extrabold px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans transition-all glow-btn-volt"><UserPlus className="w-3.5 h-3.5" /> Add Member</button>
           <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); window.location.href = '/'; } }} className="flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl text-xs uppercase tracking-wider font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
@@ -1229,6 +1247,88 @@ export default function MasterSequence() {
                 className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" /> Direct SMS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- AUTOMATED BATCH WHATSAPP MODAL --- */}
+      {isBatchWhatsAppOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-emerald-500/30 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative font-sans max-h-[90vh] flex flex-col">
+            <button 
+              onClick={() => setIsBatchWhatsAppOpen(false)} 
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Auto WhatsApp Reminders</h3>
+                <p className="text-xs text-gray-400">Batch Dispatcher for Expiring & Expired Athletes</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 my-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
+              ⚡ Click <strong>&quot;Send Next WhatsApp&quot;</strong> to automatically open WhatsApp Web/Mobile with pre-filled renewal reminders for each member!
+            </p>
+
+            {/* List of Target Members */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 my-2 pr-1 max-h-[350px]">
+              {[...expiringSoonMembers, ...expiredMembers].map((member) => {
+                const isSent = sentWhatsAppIds.includes(member.id);
+                return (
+                  <div key={member.id} className="bg-slate-950/80 border border-slate-800 p-3 rounded-xl flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-white">{member.full_name}</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          (member.days_left || 0) > 0 ? 'bg-brand-orange/20 text-brand-orange' : 'bg-rose-500/20 text-rose-400'
+                        }`}>
+                          {(member.days_left || 0) > 0 ? `${member.days_left} Days Left` : 'Expired'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">{member.phone_number}</p>
+                    </div>
+
+                    <button
+                      onClick={() => sendWhatsAppReminder(member)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isSent 
+                          ? 'bg-slate-800 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg'
+                      }`}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> {isSent ? 'Sent ✅' : 'Send WhatsApp'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Master Action Button */}
+            <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+              <span className="text-xs text-gray-400 font-mono">
+                {sentWhatsAppIds.length} of {expiringSoonMembers.length + expiredMembers.length} sent
+              </span>
+              
+              <button
+                onClick={() => {
+                  const remaining = [...expiringSoonMembers, ...expiredMembers].filter(m => !sentWhatsAppIds.includes(m.id));
+                  if (remaining.length > 0) {
+                    sendWhatsAppReminder(remaining[0]);
+                  } else {
+                    alert('All WhatsApp reminders in this queue have been dispatched!');
+                  }
+                }}
+                className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-xl"
+              >
+                <MessageCircle className="w-4 h-4" /> Send Next WhatsApp
               </button>
             </div>
           </div>
