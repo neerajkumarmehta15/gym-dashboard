@@ -401,12 +401,39 @@ export default function AthleteDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Realtime Supabase Subscription for Coach Workouts & Suggestions updates
+  // Comprehensive Realtime Supabase Subscriptions for Athlete Portal
   useEffect(() => {
-    if (!profile?.full_name) return;
+    if (!profile?.id || !profile?.full_name) return;
 
     const channel = supabase
-      .channel(`workouts-${profile.full_name}`)
+      .channel(`athlete-realtime-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'members',
+          filter: `id=eq.${profile.id}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setProfile(prev => prev ? { ...prev, ...payload.new } : (payload.new as MemberProfile));
+            localStorage.setItem('athlete_profile', JSON.stringify(payload.new));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `member_id=eq.${profile.id}`
+        },
+        () => {
+          fetchSubscriptionDetails(profile.id);
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -416,12 +443,50 @@ export default function AthleteDashboard() {
           filter: `member_name=eq.${profile.full_name}`
         },
         (payload) => {
-          fetchAthleteData(profile.full_name);
-          const exName = payload.new.exercise_name || '';
+          const exName = payload.new?.exercise_name || '';
           if (exName.startsWith("[Coach Note] ")) {
+            const noteText = exName.substring(13);
+            setCoachSuggestion(noteText);
+            localStorage.setItem('athlete_coach_suggestion', noteText);
             showToast("New suggestion notes received from Coach! 💡");
           } else if (exName.endsWith(" [Coach]")) {
             showToast("New workout routine pushed by Coach! ⚡");
+            fetchAthleteData(profile.full_name);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'nutrition_logs',
+          filter: `member_name=eq.${profile.full_name}`
+        },
+        (payload) => {
+          if (payload.new?.protein_grams) {
+            setDailyProtein(prev => {
+              const updated = prev + Number(payload.new.protein_grams);
+              localStorage.setItem('athlete_protein', String(updated));
+              return updated;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'recovery_metrics',
+          filter: `member_name=eq.${profile.full_name}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setCurrentWeight(payload.new.body_weight_kg);
+            setCurrentSleep(payload.new.sleep_hours);
+            localStorage.setItem('athlete_weight', String(payload.new.body_weight_kg));
+            localStorage.setItem('athlete_sleep', String(payload.new.sleep_hours));
           }
         }
       )
@@ -430,7 +495,7 @@ export default function AthleteDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.full_name]);
+  }, [profile?.id, profile?.full_name]);
 
   // Click outside to close expanded avatar zoom
   useEffect(() => {
@@ -463,6 +528,17 @@ export default function AthleteDashboard() {
       finalExName = `${exercise}${suffix}`;
     }
 
+    // Optimistic UI update for instant feedback
+    const optimisticW: Workout = {
+      id: 'temp-' + Date.now(),
+      exercise_name: finalExName,
+      sets: parseInt(sets),
+      reps: parseInt(reps),
+      weight_kg: finalWeight,
+      created_at: new Date().toISOString()
+    };
+    setRecentWorkouts(prev => [optimisticW, ...prev]);
+
     const { error } = await supabase.from('workouts').insert([{
       member_name: profile.full_name,
       exercise_name: finalExName,
@@ -478,7 +554,7 @@ export default function AthleteDashboard() {
       setTimeout(() => {
         setWorkoutStatus('');
         setIsWorkoutOpen(false);
-      }, 1500);
+      }, 1200);
     } else {
       setWorkoutStatus(`Error: ${error.message}`);
     }
@@ -486,6 +562,7 @@ export default function AthleteDashboard() {
 
   async function handleDeleteWorkout(id: string) {
     if (!profile) return;
+    setRecentWorkouts(prev => prev.filter(w => w.id !== id));
     const { error } = await supabase.from('workouts').delete().eq('id', id);
     if (!error) fetchAthleteData(profile.full_name);
   }
@@ -494,6 +571,8 @@ export default function AthleteDashboard() {
   async function handleQuickLogNutrition(food: string, protein: number) {
     if (!profile) return;
     setNutritionStatus(`Logging ${food}...`);
+    // Optimistic UI update
+    setDailyProtein(prev => prev + protein);
 
     const { error } = await supabase.from('nutrition_logs').insert([{
       member_name: profile.full_name,
@@ -504,7 +583,7 @@ export default function AthleteDashboard() {
     if (!error) {
       setNutritionStatus(`Added ${food} (+${protein}g) 🥩`);
       fetchAthleteData(profile.full_name);
-      setTimeout(() => setNutritionStatus(''), 3000);
+      setTimeout(() => setNutritionStatus(''), 2500);
     } else {
       setNutritionStatus(`Error: ${error.message}`);
     }
@@ -518,6 +597,8 @@ export default function AthleteDashboard() {
     const protein = parseInt(formData.get('protein')?.toString() || '0');
 
     setNutritionStatus(`Logging...`);
+    if (protein > 0) setDailyProtein(prev => prev + protein);
+
     const { error } = await supabase.from('nutrition_logs').insert([{
       member_name: profile.full_name,
       food_item: sources,
@@ -531,7 +612,7 @@ export default function AthleteDashboard() {
       setTimeout(() => {
         setNutritionStatus('');
         setIsNutritionOpen(false);
-      }, 1500);
+      }, 1200);
     } else {
       setNutritionStatus(`Error: ${error.message}`);
     }
@@ -543,6 +624,9 @@ export default function AthleteDashboard() {
     if (!profile) return;
     setMetricsStatus('Updating recovery metrics...');
 
+    if (inputWeight) setCurrentWeight(parseFloat(inputWeight));
+    if (inputSleep) setCurrentSleep(parseFloat(inputSleep));
+
     const { error } = await supabase.from('recovery_metrics').insert([{
       member_name: profile.full_name,
       body_weight_kg: inputWeight ? parseFloat(inputWeight) : currentWeight,
@@ -553,7 +637,7 @@ export default function AthleteDashboard() {
       setMetricsStatus('Recovery Metrics Saved! 📈');
       setInputWeight(''); setInputSleep('');
       fetchAthleteData(profile.full_name);
-      setTimeout(() => setMetricsStatus(''), 3000);
+      setTimeout(() => setMetricsStatus(''), 2500);
     } else {
       setMetricsStatus(`Error: ${error.message}`);
     }

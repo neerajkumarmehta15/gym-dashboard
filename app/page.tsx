@@ -282,16 +282,25 @@ export default function MasterSequence() {
       });
       setMembers(membersWithSubs);
       triggerAutomaticExpiryAlerts(membersWithSubs);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gymnation_owner_members', JSON.stringify(membersWithSubs));
+      }
     }
 
     if (planData) {
       setPlans(planData);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gymnation_owner_plans', JSON.stringify(planData));
+      }
     }
 
     if (subDetails) {
       // Calculate revenue directly from the fetched subscriptions details to save another database query
       const revenue = subDetails.reduce((sum, sub) => sum + Number(sub.amount_paid || 0), 0);
       setTotalRevenue(revenue);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gymnation_owner_revenue', String(revenue));
+      }
     }
     
     setIsSyncing(false);
@@ -299,6 +308,17 @@ export default function MasterSequence() {
 
   useEffect(() => { 
     let isMounted = true;
+
+    // Load cached data for 0ms lag loading UI
+    if (typeof window !== 'undefined') {
+      const cachedM = localStorage.getItem('gymnation_owner_members');
+      const cachedP = localStorage.getItem('gymnation_owner_plans');
+      const cachedR = localStorage.getItem('gymnation_owner_revenue');
+      if (cachedM && isMounted) setMembers(JSON.parse(cachedM));
+      if (cachedP && isMounted) setPlans(JSON.parse(cachedP));
+      if (cachedR && isMounted) setTotalRevenue(Number(cachedR));
+      if (cachedM && isMounted) setIsSyncing(false);
+    }
 
     // 1. Initial check from storage & flush if fresh visit
     const checkSession = async () => {
@@ -339,6 +359,44 @@ export default function MasterSequence() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- REAL-TIME DATA SUBSCRIPTIONS FOR OWNER DASHBOARD ---
+  useEffect(() => {
+    if (authStatus !== 'owner') return;
+
+    const ownerChannel = supabase
+      .channel('owner-realtime-global')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'members' },
+        () => { initializeEngine(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'subscriptions' },
+        () => { initializeEngine(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'membership_plans' },
+        () => { initializeEngine(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workouts' },
+        () => { initializeEngine(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recovery_metrics' },
+        () => { initializeEngine(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ownerChannel);
+    };
+  }, [authStatus]);
 
   // --- INACTIVITY AUTO-LOGOUT (10 MINS) & REFRESH LIMITER ---
   useEffect(() => {
@@ -431,6 +489,8 @@ export default function MasterSequence() {
 
   async function deleteMember(id: string, name: string) {
     if (!confirm(`Permanently delete ${name}?`)) return;
+    // Optimistic UI update
+    setMembers(prev => prev.filter(m => m.id !== id));
     await supabase.from('members').delete().eq('id', id);
     initializeEngine();
   }
