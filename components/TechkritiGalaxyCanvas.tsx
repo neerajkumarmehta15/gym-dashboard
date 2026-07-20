@@ -12,6 +12,7 @@ interface Particle {
   alpha: number;
   baseAlpha: number;
   isMainRing: boolean;
+  wavePhase: number;
 }
 
 export default function TechkritiGalaxyCanvas() {
@@ -43,20 +44,22 @@ export default function TechkritiGalaxyCanvas() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Color palettes matching exact Techkriti screenshot:
-    // Bright cream/gold/white for dense ring, lavender/purple/blue for outer halo
-    const ringColors = ['#ffffff', '#fffbeb', '#fef08a', '#fbcfe8', '#f472b6'];
-    const haloColors = ['#e9d5ff', '#c084fc', '#a855f7', '#9333ea', '#93c5fd', '#818cf8'];
+    // Exact Techkriti.org Color Palette:
+    // Core Ring: Crisp White, Light Gold, Rose Pink, Neon Violet
+    // Outer Space: Deep Lavender, Indigo Blue, Soft Cyan
+    const ringColors = ['#ffffff', '#ffffff', '#fffbeb', '#fef08a', '#fbcfe8', '#e879f9', '#c084fc'];
+    const outerColors = ['#e9d5ff', '#c084fc', '#a855f7', '#818cf8', '#60a5fa', '#38bdf8'];
 
-    const particleCount = width < 768 ? 1400 : 2600;
+    const particleCount = width < 768 ? 1600 : 3000;
     const particles: Particle[] = [];
 
-    const minDimension = Math.min(width, height);
-    const ringBaseRadius = minDimension * 0.28; // Ring Radius
-    const ringBandWidth = minDimension * 0.08;  // Thickness of dense ring
+    const minDim = Math.min(width, height);
+    // Exact Techkriti Ring Geometry: Centered, Hollow Hole inside
+    const ringRadius = minDim * 0.26;    // Main Ring Radius
+    const ringWidth = minDim * 0.075;    // Dense Ring Band Thickness
 
     for (let i = 0; i < particleCount; i++) {
-      const isMainRing = i < particleCount * 0.55; // 55% dense ring, 45% outer halo
+      const isMainRing = i < particleCount * 0.65; // 65% in main dense ring
 
       let radius: number;
       let color: string;
@@ -64,24 +67,28 @@ export default function TechkritiGalaxyCanvas() {
       let alpha: number;
       let yOffset: number;
       let speed: number;
+      let wavePhase: number;
 
       if (isMainRing) {
-        // Gaussian-like concentration along the hollow ring circumference
-        const spread = (Math.random() - 0.5) * ringBandWidth;
-        radius = ringBaseRadius + spread;
+        // High density ring with clean hollow center hole
+        const bandOffset = (Math.random() - 0.5) * ringWidth;
+        radius = ringRadius + bandOffset;
         color = ringColors[Math.floor(Math.random() * ringColors.length)];
-        size = Math.random() < 0.12 ? Math.random() * 2.4 + 1.4 : Math.random() * 1.3 + 0.6;
-        alpha = Math.random() * 0.75 + 0.25;
-        yOffset = (Math.random() - 0.5) * 22; // Thin vertical profile
-        speed = 0.0012 + Math.random() * 0.0006;
+        size = Math.random() < 0.15 ? Math.random() * 2.2 + 1.2 : Math.random() * 1.2 + 0.5;
+        alpha = Math.random() * 0.8 + 0.2;
+        wavePhase = Math.random() * Math.PI * 2;
+        // Subtle 3D vertical thickness & wave
+        yOffset = (Math.random() - 0.5) * 20;
+        speed = 0.0014 + (Math.random() - 0.5) * 0.0004;
       } else {
-        // Outer halo & background field fading outwards
-        const distFactor = Math.pow(Math.random(), 0.5);
-        radius = ringBaseRadius + 20 + distFactor * (minDimension * 0.55);
-        color = haloColors[Math.floor(Math.random() * haloColors.length)];
-        size = Math.random() < 0.08 ? Math.random() * 2.0 + 1.0 : Math.random() * 1.2 + 0.4;
-        alpha = Math.random() * 0.5 + 0.15;
-        yOffset = (Math.random() - 0.5) * (40 + distFactor * 60);
+        // Dispersed outer space particle cloud fading outwards
+        const distFactor = Math.pow(Math.random(), 0.55);
+        radius = ringRadius + 25 + distFactor * (minDim * 0.55);
+        color = outerColors[Math.floor(Math.random() * outerColors.length)];
+        size = Math.random() < 0.08 ? Math.random() * 1.8 + 1.0 : Math.random() * 1.1 + 0.4;
+        alpha = Math.random() * 0.5 + 0.1;
+        wavePhase = Math.random() * Math.PI * 2;
+        yOffset = (Math.random() - 0.5) * (35 + distFactor * 65);
         speed = (0.0004 + Math.random() * 0.0008) * (Math.random() < 0.5 ? 1 : -1);
       }
 
@@ -94,12 +101,13 @@ export default function TechkritiGalaxyCanvas() {
         color,
         alpha,
         baseAlpha: alpha,
-        isMainRing
+        isMainRing,
+        wavePhase
       });
     }
 
-    // 3D Tilt parameters (Exact Techkriti ~58° tilt angle on X-axis)
-    const tiltAngleX = Math.PI * 0.32;
+    // Exact Techkriti 3D Tilt Angle (~62° X-axis inclination)
+    const tiltAngleX = Math.PI * 0.34;
     const cosTilt = Math.cos(tiltAngleX);
     const sinTilt = Math.sin(tiltAngleX);
 
@@ -117,55 +125,58 @@ export default function TechkritiGalaxyCanvas() {
 
     // Animation Loop
     const render = () => {
-      // Solid pitch black background (No center glow overlay so center stays hollow!)
+      // Clean Pitch Black Space Background
       ctx.fillStyle = '#030712';
       ctx.fillRect(0, 0, width, height);
 
       const centerX = width / 2;
       const centerY = height / 2;
-      const fov = 650;
+      const fov = 680;
 
-      // Smooth 3D Y-axis rotation
-      targetRotY += 0.002;
-      currentRotY += (targetRotY + mouseX * 0.15 - currentRotY) * 0.04;
+      // Continuous 3D Y-axis Rotation (Techkriti Ring Spin)
+      targetRotY += 0.0022;
+      currentRotY += (targetRotY + mouseX * 0.12 - currentRotY) * 0.04;
 
       const cosRotY = Math.cos(currentRotY);
       const sinRotY = Math.sin(currentRotY);
 
-      // Project particles into 3D perspective
+      // Project particles in 3D Space
       const projected = [];
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.angle += p.speed;
-        
-        // Subtle twinkling opacity
-        p.alpha = p.baseAlpha + Math.sin(p.angle * 6) * 0.15;
+
+        // Twinkle effect
+        p.alpha = p.baseAlpha + Math.sin(p.angle * 8 + p.wavePhase) * 0.2;
         const currentAlpha = Math.max(0.1, Math.min(1, p.alpha));
 
-        // 1. Coordinates on ring plane
+        // Ring vertical 3D wave modulation (Techkriti wavy ring motion)
+        const waveY = p.isMainRing ? Math.sin(p.angle * 3 + p.wavePhase) * 8 : 0;
+
+        // 1. Initial Position on 3D Ring Plane
         const x0 = p.radius * Math.cos(p.angle);
         const z0 = p.radius * Math.sin(p.angle);
-        const y0 = p.yOffset;
+        const y0 = p.yOffset + waveY;
 
-        // 2. Y-axis spin rotation
+        // 2. Y-Axis Orbit Rotation
         const x1 = x0 * cosRotY - z0 * sinRotY;
         const z1 = x0 * sinRotY + z0 * cosRotY;
 
-        // 3. X-axis 3D tilt rotation
+        // 3. X-Axis 3D Tilt Angle
         const y2 = y0 * cosTilt - z1 * sinTilt;
         const z2 = y0 * sinTilt + z1 * cosTilt;
 
-        // 4. Perspective Projection
+        // 4. Perspective Projection Math
         const scale = fov / (fov + z2 + 450);
         const projX = centerX + x1 * scale;
-        const projY = centerY + (y2 + mouseY * 25) * scale;
+        const projY = centerY + (y2 + mouseY * 20) * scale;
 
-        if (projX >= -30 && projX <= width + 30 && projY >= -30 && projY <= height + 30) {
+        if (projX >= -40 && projX <= width + 40 && projY >= -40 && projY <= height + 40) {
           projected.push({
             x: projX,
             y: projY,
-            size: Math.max(0.3, p.size * scale),
+            size: Math.max(0.35, p.size * scale),
             color: p.color,
             alpha: currentAlpha * Math.min(1, scale),
             z: z2,
@@ -174,10 +185,10 @@ export default function TechkritiGalaxyCanvas() {
         }
       }
 
-      // Depth sorting (back-to-front rendering for 3D realism)
+      // Depth Sorting (Back-to-Front 3D particle rendering)
       projected.sort((a, b) => b.z - a.z);
 
-      // Draw 3D Ring Particles
+      // Render 3D Particle Stars
       for (let i = 0; i < projected.length; i++) {
         const p = projected[i];
         ctx.globalAlpha = p.alpha;
@@ -187,9 +198,9 @@ export default function TechkritiGalaxyCanvas() {
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Soft outer glow for main ring bright particles
-        if (p.isMainRing && p.size > 1.6) {
-          ctx.globalAlpha = p.alpha * 0.35;
+        // Soft outer glow highlight for bright ring stars
+        if (p.isMainRing && p.size > 1.7) {
+          ctx.globalAlpha = p.alpha * 0.3;
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
           ctx.fill();
