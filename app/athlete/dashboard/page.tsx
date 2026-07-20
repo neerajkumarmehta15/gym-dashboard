@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, QrCode, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, ClipboardList, CheckCircle, Sparkles } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -96,7 +96,6 @@ export default function AthleteDashboard() {
   // Modals state
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
-  const [isQrOpen, setIsQrOpen] = useState(false);
 
   // Forms state
   const [exercise, setExercise] = useState('');
@@ -1505,37 +1504,6 @@ export default function AthleteDashboard() {
                 <p className="text-center font-bold text-xs text-emerald-400 mt-3 font-mono">{nutritionStatus}</p>
               )}
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- QR CHECK IN MODAL --- */}
-      {isQrOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-          <div className="glass-modal w-full max-w-sm rounded-2xl p-8 shadow-2xl relative text-center">
-            <button 
-              onClick={() => setIsQrOpen(false)} 
-              className="absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-900 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Check In Pass</h3>
-            <p className="text-gray-400 text-xs mb-6 uppercase tracking-wider font-mono">Present to HQ Scanner</p>
-            
-            {/* Render QR code based on user memberProfile.id */}
-            <div className="bg-white p-4 rounded-2xl inline-block shadow-inner mb-6">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile.id}`} 
-                alt="HQ Check-in QR" 
-                className="w-48 h-48"
-              />
-            </div>
-            
-            <div className="space-y-1">
-              <span className="font-extrabold text-sm text-white block">{profile.full_name}</span>
-              <span className="text-[10px] text-gray-500 font-mono select-all block">{profile.id}</span>
-            </div>
           </div>
         </div>
       )}
