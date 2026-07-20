@@ -19,6 +19,7 @@ interface MemberData {
   email?: string;
   gender?: string;
   photo?: string;
+  pin?: string | null;
   suggestions?: string;
   start_date?: string;
   end_date?: string | null;

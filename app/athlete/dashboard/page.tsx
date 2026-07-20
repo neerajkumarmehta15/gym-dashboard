@@ -17,6 +17,7 @@ interface MemberProfile {
   suggestions?: string;
   gender?: string | null;
   photo?: string | null;
+  pin?: string | null;
 }
 
 interface SubscriptionInfo {
@@ -655,36 +656,22 @@ export default function AthleteDashboard() {
 
     setPinStatus('Saving PIN security settings...');
 
-    // Extract base gender ('Male' or 'Female')
-    let currentRawGender = profile.gender || 'Male';
-    if (typeof window !== 'undefined' && !profile.gender) {
-      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-      currentRawGender = localGenders[profile.id] || 'Male';
-    }
-    const baseGender = currentRawGender.split('|')[0] || 'Male';
-    const updatedGenderField = `${baseGender}|${cleanPin}`;
-
-    // 1. Update Supabase Database
+    // 1. Update Supabase Database dedicated pin column
     const { error } = await supabase
       .from('members')
-      .update({ gender: updatedGenderField })
+      .update({ pin: cleanPin })
       .eq('id', profile.id);
 
     if (error) {
       setPinStatus(`Database Error: ${error.message}`);
     } else {
-      // 2. Update Local Storage Fallbacks
+      // 2. Update Local Storage Fallbacks & State
       if (typeof window !== 'undefined') {
-        const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-        localGenders[profile.id] = updatedGenderField;
-        localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
-
-        const updatedProfile = { ...profile, gender: updatedGenderField };
+        const updatedProfile = { ...profile, pin: cleanPin };
         localStorage.setItem('athlete_profile', JSON.stringify(updatedProfile));
       }
 
-      // 3. Update local state
-      setProfile(prev => prev ? { ...prev, gender: updatedGenderField } : null);
+      setProfile(prev => prev ? { ...prev, pin: cleanPin } : null);
       setNewPin('');
       setPinStatus('4-Digit PIN Saved & Activated! 🔒');
       showToast('4-Digit PIN Security Activated!');
@@ -696,31 +683,20 @@ export default function AthleteDashboard() {
     if (!profile) return;
     setPinStatus('Removing PIN security...');
 
-    let currentRawGender = profile.gender || 'Male';
-    if (typeof window !== 'undefined' && !profile.gender) {
-      const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-      currentRawGender = localGenders[profile.id] || 'Male';
-    }
-    const baseGender = currentRawGender.split('|')[0] || 'Male';
-
     const { error } = await supabase
       .from('members')
-      .update({ gender: baseGender })
+      .update({ pin: null })
       .eq('id', profile.id);
 
     if (error) {
       setPinStatus(`Database Error: ${error.message}`);
     } else {
       if (typeof window !== 'undefined') {
-        const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-        localGenders[profile.id] = baseGender;
-        localStorage.setItem('gymnation_member_genders', JSON.stringify(localGenders));
-
-        const updatedProfile = { ...profile, gender: baseGender };
+        const updatedProfile = { ...profile, pin: null };
         localStorage.setItem('athlete_profile', JSON.stringify(updatedProfile));
       }
 
-      setProfile(prev => prev ? { ...prev, gender: baseGender } : null);
+      setProfile(prev => prev ? { ...prev, pin: null } : null);
       setNewPin('');
       setPinStatus('PIN Security Disabled');
       showToast('PIN Security Disabled');
@@ -836,14 +812,12 @@ export default function AthleteDashboard() {
   const proteinPercentage = Math.min((dailyProtein / proteinTarget) * 100, 100);
 
   // Resolve gender and PIN
-  let rawGender = profile?.gender || 'Male';
+  let resolvedGender = profile?.gender || 'Male';
   if (typeof window !== 'undefined' && profile?.id && !profile?.gender) {
     const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-    rawGender = localGenders[profile.id] || 'Male';
+    resolvedGender = localGenders[profile.id] || 'Male';
   }
-  const genderParts = rawGender.split('|');
-  const resolvedGender = genderParts[0] || 'Male';
-  const currentPin = genderParts[1] || null;
+  const currentPin = profile?.pin || null;
 
   // Resolve photo
   let resolvedPhoto = profile?.photo || null;

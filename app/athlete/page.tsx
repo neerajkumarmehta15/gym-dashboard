@@ -70,20 +70,14 @@ export default function AthleteLogin() {
       }
 
       if (matchedMember) {
-        // Check if PIN is set (stored in gender field as gender|pin)
-        let rawGender = matchedMember.gender || 'Male';
-        if (typeof window !== 'undefined') {
-          const localGenders = JSON.parse(localStorage.getItem('gymnation_member_genders') || '{}');
-          if (!matchedMember.gender) {
-            rawGender = localGenders[matchedMember.id] || 'Male';
-          }
+        // Check if PIN is configured in dedicated pin column or legacy format
+        let pin = matchedMember.pin || null;
+        if (!pin && matchedMember.gender && matchedMember.gender.includes('|')) {
+          pin = matchedMember.gender.split('|')[1] || null;
         }
-        
-        const genderParts = rawGender.split('|');
-        const pin = genderParts[1] || null;
 
         if (pin) {
-          // PIN is configured
+          // PIN security active
           setPendingMember({ ...matchedMember, actualPin: pin });
           setRequirePin(true);
           setLoading(false);
