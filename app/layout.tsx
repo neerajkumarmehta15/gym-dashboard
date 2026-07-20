@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import RefreshRedirect from "./RefreshRedirect";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">
         <RefreshRedirect />
         {children}
+        <PWAInstallPrompt />
       </body>
     </html>
   );
