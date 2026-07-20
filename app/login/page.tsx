@@ -56,7 +56,7 @@ export default function LoginScreen() {
       <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-brand-volt/10 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="w-full max-w-md glass-panel p-8 md:p-10 rounded-3xl relative z-10">
+      <div className="w-full max-w-md glass-panel p-6 sm:p-8 md:p-10 rounded-3xl relative z-10">
         <div className="flex justify-center mb-6">
           <div className="p-3 bg-brand-orange/10 text-brand-orange rounded-xl border border-brand-orange/20">
             <ShieldAlert className="w-8 h-8" />

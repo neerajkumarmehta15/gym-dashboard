@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, DollarSign, RefreshCw, UserPlus, X, Trash2, Power, Search, Activity, ArrowLeft, MoreVertical, Edit3, PlusCircle, MessageCircle, MessageSquare, Settings, QrCode } from 'lucide-react';
 import MetricsCard from '../components/MetricsCard';
 import ManagePlansModal from '../components/ManagePlansModal';
 import AddMemberModal from '../components/AddMemberModal';
@@ -793,7 +793,7 @@ export default function MasterSequence() {
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-orange/5 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-volt/5 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="max-w-6xl mx-auto flex justify-between items-center mb-8 border-b border-slate-900 pb-5 relative z-10">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-slate-900 pb-5 relative z-10">
         <div className="flex items-center gap-3.5">
           <button 
             onClick={() => window.history.back()} 
@@ -805,22 +805,23 @@ export default function MasterSequence() {
           <div>
             <h1 
               onClick={() => window.location.reload()}
-              className="text-3xl text-3d-gymnation cursor-pointer select-none"
+              className="text-2xl sm:text-3xl text-3d-gymnation cursor-pointer select-none"
               title="Refresh Page"
             >
               GYMNATION
             </h1>
-            <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Live Database Matrix Engine</p>
+            <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-0.5">Live Database Matrix Engine</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => setIsPlansModalOpen(true)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-brand-orange/40 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans text-white transition-all"><Settings className="w-4 h-4" /> Manage Plans</button>
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-brand-volt text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-sans transition-all glow-btn-volt"><UserPlus className="w-4 h-4" /> Add Member</button>
-          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); } window.location.reload(); }} className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs uppercase tracking-widest font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
+          <button onClick={() => router.push('/scanner')} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-volt/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono text-brand-volt transition-all"><QrCode className="w-3.5 h-3.5" /> Scanner</button>
+          <button onClick={() => setIsPlansModalOpen(true)} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-orange/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans text-white transition-all"><Settings className="w-3.5 h-3.5" /> Plans</button>
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 bg-brand-volt text-black font-extrabold px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-sans transition-all glow-btn-volt"><UserPlus className="w-3.5 h-3.5" /> Add Member</button>
+          <button onClick={async () => { await supabase.auth.signOut(); if (typeof window !== 'undefined') { sessionStorage.removeItem('owner_session_active'); sessionStorage.removeItem('owner_refresh_count'); } window.location.reload(); }} className="flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl text-xs uppercase tracking-wider font-mono font-bold text-rose-400 hover:bg-rose-500/20 transition-all">Log Out</button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-5 mb-8 relative z-10 select-none">
+      <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-8 relative z-10 select-none">
         <MetricsCard 
           title="Expired"
           value={expiredMembers.length}
@@ -913,8 +914,8 @@ export default function MasterSequence() {
               }
 
               return (
-                <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex justify-between items-center group hover:border-gray-800/90 transition-colors">
-                  <div className="flex items-center gap-4">
+                <div key={member.id} className="bg-brand-dark/40 border border-gray-900 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 group hover:border-gray-800/90 transition-colors">
+                  <div className="flex items-center gap-3.5">
                     {/* Avatar Container with In-Place Zoom */}
                     <div className="relative flex items-center justify-center w-12 h-12">
                       {/* Normal Avatar (visible when not zoomed, behaves as layout space placeholder) */}
@@ -1003,7 +1004,7 @@ export default function MasterSequence() {
                       </div>
                     </div>
                   </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end border-t border-slate-900/60 sm:border-t-0 pt-2 sm:pt-0">
                   <button onClick={() => openAthleteDossier(member)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/60 border border-gray-850 hover:bg-brand-purple/10 hover:text-brand-purple hover:border-brand-purple/20 rounded-lg text-xs font-bold text-slate-300 transition-all"><Activity className="w-3 h-3" /> Logs</button>
                   
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${member.status === 'active' ? 'bg-brand-volt/10 text-brand-volt border border-brand-volt/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>{member.status.toUpperCase()}</span>

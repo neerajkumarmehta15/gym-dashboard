@@ -235,7 +235,7 @@ export default function QRScannerPage() {
     <div className="min-h-screen bg-brand-dark flex flex-col font-sans text-slate-200">
       
       {/* Header Area */}
-      <header className="border-b border-gray-900 bg-brand-dark/95 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+      <header className="border-b border-gray-900 bg-brand-dark/95 backdrop-blur px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
@@ -246,8 +246,8 @@ export default function QRScannerPage() {
             <ArrowLeft className="w-5 h-5 text-gray-400 hover:text-white" />
           </button>
           <div>
-            <h1 className="text-lg font-black tracking-widest text-brand-volt">GYMNATION SCANNER</h1>
-            <p className="text-[10px] text-gray-500 font-mono tracking-wider uppercase">Front Desk Check-in Interface</p>
+            <h1 className="text-base sm:text-lg font-black tracking-widest text-brand-volt">GYMNATION SCANNER</h1>
+            <p className="text-[9px] sm:text-[10px] text-gray-500 font-mono tracking-wider uppercase">Front Desk Check-in Interface</p>
           </div>
         </div>
         
@@ -259,11 +259,11 @@ export default function QRScannerPage() {
               setSelectedCameraId(cid);
               startScanner(cid);
             }}
-            className="bg-slate-900 border border-gray-800 text-xs text-white rounded-lg p-2.5 outline-none font-bold"
+            className="bg-slate-900 border border-gray-800 text-xs text-white rounded-lg p-2 outline-none font-bold"
           >
             {cameras.map((c, i) => (
               <option key={c.id} value={c.id}>
-                Camera {i + 1} ({c.label || 'Generic'})
+                Cam {i + 1} ({c.label ? c.label.substring(0, 10) : 'Generic'})
               </option>
             ))}
           </select>
@@ -271,7 +271,7 @@ export default function QRScannerPage() {
       </header>
 
       {/* Main Control Console */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 max-w-7xl mx-auto w-full">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 sm:p-6 max-w-7xl mx-auto w-full">
         
         {/* Left Column: QR Code scanning Viewport */}
         <div className="lg:col-span-2 flex flex-col gap-6">
