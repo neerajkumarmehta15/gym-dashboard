@@ -758,7 +758,11 @@ export default function AthleteDashboard() {
       localStorage.removeItem('athlete_subscription');
     }
     supabase.auth.signOut().then(() => {
-      router.push('/athlete');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      } else {
+        router.push('/');
+      }
     });
   };
 
