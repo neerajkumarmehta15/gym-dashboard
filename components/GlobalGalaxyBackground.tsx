@@ -1,10 +1,13 @@
 'use client';
 
 import React from 'react';
-import dynamic from 'next/dynamic';
-
-const TechkritiGalaxyCanvas = dynamic(() => import('./TechkritiGalaxyCanvas'), { ssr: false });
 
 export default function GlobalGalaxyBackground() {
-  return <TechkritiGalaxyCanvas />;
+  return (
+    <div className="galaxy-bg-wrapper">
+      <div className="galaxy-spiral" />
+      <div className="galaxy-core" />
+      <div className="star-field" />
+    </div>
+  );
 }

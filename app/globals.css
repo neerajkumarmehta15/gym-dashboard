@@ -126,10 +126,13 @@ body {
   box-shadow: 0 0 18px rgba(255, 107, 0, 0.35);
 }
 
-/* Animated Cosmic Spiral Galaxy Background */
+/* Animated Full-Screen 3D Cosmic Spiral Galaxy Background */
 .galaxy-bg-wrapper {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
@@ -140,16 +143,16 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 1400px;
-  height: 1400px;
-  margin-top: -700px;
-  margin-left: -700px;
+  width: 1800px;
+  height: 1800px;
+  margin-top: -900px;
+  margin-left: -900px;
   background: 
-    radial-gradient(ellipse at center, rgba(168, 85, 247, 0.35) 0%, rgba(59, 130, 246, 0.25) 35%, rgba(212, 255, 0, 0.1) 60%, transparent 80%),
-    repeating-conic-gradient(from 0deg, rgba(168, 85, 247, 0.18) 0deg 30deg, transparent 30deg 60deg, rgba(236, 72, 153, 0.18) 60deg 90deg, transparent 90deg 120deg);
+    radial-gradient(ellipse at center, rgba(168, 85, 247, 0.45) 0%, rgba(59, 130, 246, 0.3) 35%, rgba(212, 255, 0, 0.15) 60%, transparent 80%),
+    repeating-conic-gradient(from 0deg, rgba(168, 85, 247, 0.25) 0deg 30deg, transparent 30deg 60deg, rgba(236, 72, 153, 0.25) 60deg 90deg, transparent 90deg 120deg);
   border-radius: 50%;
-  filter: blur(45px);
-  animation: rotateGalaxy 120s linear infinite;
+  filter: blur(40px);
+  animation: rotateGalaxy3D 100s linear infinite;
   transform-origin: center center;
 }
 
@@ -157,11 +160,11 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 340px;
-  height: 340px;
-  margin-top: -170px;
-  margin-left: -170px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(250, 204, 21, 0.7) 25%, rgba(234, 88, 12, 0.45) 50%, rgba(168, 85, 247, 0.25) 75%, transparent 100%);
+  width: 380px;
+  height: 380px;
+  margin-top: -190px;
+  margin-left: -190px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(250, 204, 21, 0.75) 25%, rgba(234, 88, 12, 0.5) 50%, rgba(168, 85, 247, 0.3) 75%, transparent 100%);
   border-radius: 50%;
   filter: blur(25px);
   animation: pulseGalaxyCore 6s ease-in-out infinite alternate;
@@ -172,23 +175,23 @@ body {
   inset: 0;
   background-image: 
     radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 40px 70px, rgba(212, 255, 0, 0.9), rgba(0,0,0,0)),
+    radial-gradient(2.5px 2.5px at 40px 70px, rgba(212, 255, 0, 0.9), rgba(0,0,0,0)),
     radial-gradient(1.5px 1.5px at 90px 40px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 160px 120px, rgba(168, 85, 247, 0.9), rgba(0,0,0,0)),
+    radial-gradient(2.5px 2.5px at 160px 120px, rgba(168, 85, 247, 0.9), rgba(0,0,0,0)),
     radial-gradient(2px 2px at 230px 190px, #ffffff, rgba(0,0,0,0)),
     radial-gradient(1.5px 1.5px at 310px 250px, rgba(250, 204, 21, 0.9), rgba(0,0,0,0)),
     radial-gradient(2px 2px at 380px 70px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 450px 180px, rgba(6, 182, 212, 0.9), rgba(0,0,0,0));
+    radial-gradient(2.5px 2.5px at 450px 180px, rgba(6, 182, 212, 0.9), rgba(0,0,0,0));
   background-repeat: repeat;
-  background-size: 500px 500px;
+  background-size: 450px 450px;
   animation: twinkleStars 4s ease-in-out infinite alternate;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
-@keyframes rotateGalaxy {
-  0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(180deg) scale(1.08); }
-  100% { transform: rotate(360deg) scale(1); }
+@keyframes rotateGalaxy3D {
+  0% { transform: perspective(1000px) rotateX(58deg) rotate(0deg) scale(1); }
+  50% { transform: perspective(1000px) rotateX(58deg) rotate(180deg) scale(1.1); }
+  100% { transform: perspective(1000px) rotateX(58deg) rotate(360deg) scale(1); }
 }
 
 @keyframes pulseGalaxyCore {
