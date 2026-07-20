@@ -102,7 +102,7 @@ export default function LoginScreen() {
             />
           </div>
           
-          <div className="pt-2 space-y-3">
+          <div className="pt-4">
             <button 
               type="submit"
               disabled={isAuthenticating}
@@ -110,19 +110,6 @@ export default function LoginScreen() {
             >
               {isAuthenticating ? 'VERIFYING CREDENTIALS...' : 'INITIALIZE SESSION'}
               <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('owner_session_active', 'true');
-                }
-                router.push('/');
-              }}
-              className="w-full bg-brand-volt/10 hover:bg-brand-volt/20 border border-brand-volt/30 text-brand-volt font-extrabold py-3 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer font-mono"
-            >
-              ⚡ FREE DIRECT OWNER LOGIN (NO PASSCODE)
             </button>
           </div>
         </form>
