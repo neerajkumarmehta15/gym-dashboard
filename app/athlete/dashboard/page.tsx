@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
-import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, ClipboardList, CheckCircle, Sparkles, CreditCard, Shield, Printer } from 'lucide-react';
+import { Dumbbell, Utensils, LogOut, X, Trash2, Activity, ClipboardList, CheckCircle, Sparkles, CreditCard, Shield, Printer, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfile {
@@ -131,10 +131,22 @@ export default function AthleteDashboard() {
   const [currentSleep, setCurrentSleep] = useState<number | null>(null);
   const [coachSuggestion, setCoachSuggestion] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [isSyncingData, setIsSyncingData] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleManualRefresh = async () => {
+    if (!profile) return;
+    setIsSyncingData(true);
+    await Promise.all([
+      fetchAthleteData(profile.full_name),
+      fetchSubscriptionDetails(profile.id)
+    ]);
+    setIsSyncingData(false);
+    showToast('⚡ Real-time Data Refreshed!');
   };
 
   const proteinTarget = 160;
@@ -921,6 +933,15 @@ export default function AthleteDashboard() {
             </div>
           </div>
           <div className="flex w-full sm:w-auto gap-2.5">
+            <button 
+              onClick={handleManualRefresh}
+              disabled={isSyncingData}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-900/80 border border-brand-volt/40 hover:border-brand-volt hover:bg-brand-volt/10 text-brand-volt px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+              title="Instant Real-time Sync"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncingData ? 'animate-spin text-brand-volt' : 'text-brand-volt'}`} />
+              {isSyncingData ? 'Syncing...' : 'Sync Live'}
+            </button>
             <button 
               onClick={() => setIsDigitalBadgeOpen(true)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-900/60 border border-gray-800 hover:border-brand-volt/40 hover:text-brand-volt px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-slate-300 transition-all cursor-pointer"

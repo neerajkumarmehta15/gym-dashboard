@@ -876,6 +876,18 @@ export default function MasterSequence() {
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <button 
+            onClick={() => {
+              setIsSyncing(true);
+              initializeEngine();
+            }}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 bg-slate-900 border border-brand-volt/40 hover:border-brand-volt hover:bg-brand-volt/10 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono font-bold text-brand-volt transition-all cursor-pointer shadow-sm"
+            title="Instant Real-time Sync"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-brand-volt' : 'text-brand-volt'}`} />
+            {isSyncing ? 'Syncing...' : 'Sync Live'}
+          </button>
+          <button 
             onClick={exportMembersToCSV}
             className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-brand-cyan/40 px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono text-brand-cyan transition-all cursor-pointer"
             title="Export Members Database to Excel/CSV"
