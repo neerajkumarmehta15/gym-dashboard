@@ -258,6 +258,9 @@ export default function MasterSequence() {
     }
     
     setAuthStatus('owner');
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('owner_session_active', 'true');
+    }
 
     const memberData = memberDataRes?.data;
     const subDetails = subDetailsRes?.data;
@@ -333,15 +336,14 @@ export default function MasterSequence() {
 
     // 1. Check session without blocking UI thread
     const checkSession = async () => {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('owner_session_active', 'true');
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted) {
         if (session) {
           initializeEngine(session);
         } else {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('owner_session_active');
+          }
           setAuthStatus('guest');
         }
       }
