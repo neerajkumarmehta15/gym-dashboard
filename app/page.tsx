@@ -287,7 +287,7 @@ export default function MasterSequence() {
         };
       });
       setMembers(membersWithSubs);
-      triggerAutomaticExpiryAlerts(membersWithSubs);
+      setTimeout(() => triggerAutomaticExpiryAlerts(membersWithSubs), 1200);
       if (typeof window !== 'undefined') {
         localStorage.setItem('gymnation_owner_members', JSON.stringify(membersWithSubs));
       }
@@ -301,7 +301,6 @@ export default function MasterSequence() {
     }
 
     if (subDetails) {
-      // Calculate revenue directly from the fetched subscriptions details to save another database query
       const revenue = subDetails.reduce((sum, sub) => sum + Number(sub.amount_paid || 0), 0);
       setTotalRevenue(revenue);
       if (typeof window !== 'undefined') {
@@ -315,21 +314,26 @@ export default function MasterSequence() {
   useEffect(() => { 
     let isMounted = true;
 
-    // Load cached data for 0ms lag loading UI
+    // Load cached data for instant 0ms loading UI
     if (typeof window !== 'undefined') {
       const cachedM = localStorage.getItem('gymnation_owner_members');
       const cachedP = localStorage.getItem('gymnation_owner_plans');
       const cachedR = localStorage.getItem('gymnation_owner_revenue');
+      const isOwnerSession = sessionStorage.getItem('owner_session_active') === 'true';
+
       if (cachedM && isMounted) setMembers(JSON.parse(cachedM));
       if (cachedP && isMounted) setPlans(JSON.parse(cachedP));
       if (cachedR && isMounted) setTotalRevenue(Number(cachedR));
-      if (cachedM && isMounted) setIsSyncing(false);
+      
+      if (isOwnerSession && cachedM && isMounted) {
+        setAuthStatus('owner');
+        setIsSyncing(false);
+      }
     }
 
-    // 1. Initial check from storage & flush if fresh visit
+    // 1. Check session without blocking UI thread
     const checkSession = async () => {
-      if (typeof window !== 'undefined' && !sessionStorage.getItem('owner_session_active')) {
-        await supabase.auth.signOut();
+      if (typeof window !== 'undefined') {
         sessionStorage.setItem('owner_session_active', 'true');
       }
 
