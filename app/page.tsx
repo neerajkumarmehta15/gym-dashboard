@@ -106,7 +106,12 @@ export default function MasterSequence() {
   const router = useRouter();
   
   // --- SEQUENCE STATE ---
-  const [authStatus, setAuthStatus] = useState<'loading' | 'owner' | 'guest'>('loading');
+  const [authStatus, setAuthStatus] = useState<'loading' | 'owner' | 'guest'>(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') === 'true') {
+      return 'owner';
+    }
+    return 'guest';
+  });
 
   // --- CRM STATE ---
   const [members, setMembers] = useState<MemberData[]>([]);
