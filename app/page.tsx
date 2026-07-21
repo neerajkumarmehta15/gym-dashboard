@@ -214,109 +214,110 @@ export default function MasterSequence() {
   async function initializeEngine(passedSession?: Session) {
     setIsSyncing(true);
 
-    let session = passedSession;
-    if (!session) {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) {
-        setAuthStatus('guest');
-        setIsSyncing(false);
-        return; 
-      }
-      session = currentSession;
-    }
-
-    // Check if the logged-in user is an athlete
-    const userEmail = session.user.email || '';
-    const userFullName = session.user.user_metadata?.full_name || '';
-
-    // Parallelize the athlete check and the owner metrics/CRM data fetch to eliminate sequential network waterfall.
-    const checkAthletePromise = (async () => {
-      if (typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') === 'true') {
-        return false;
-      }
-      try {
-        const [emailRes, nameRes] = await Promise.all([
-          userEmail ? supabase.from('members').select('id').eq('email', userEmail).maybeSingle() : Promise.resolve({ data: null }),
-          userFullName ? supabase.from('members').select('id').eq('full_name', userFullName).maybeSingle() : Promise.resolve({ data: null })
-        ]);
-        return !!(emailRes?.data || nameRes?.data);
-      } catch {
-        return false;
-      }
-    })();
-
-    const [
-      isAthlete,
-      memberDataRes,
-      subDetailsRes,
-      planDataRes
-    ] = await Promise.all([
-      checkAthletePromise,
-      supabase.from('members').select('*').order('joined_date', { ascending: false }),
-      supabase.from('subscriptions').select('*'),
-      supabase.from('membership_plans').select('*').order('price', { ascending: true })
-    ]);
-
-    if (isAthlete) {
-      router.push('/athlete/dashboard');
-      return;
-    }
-    
-    setAuthStatus('owner');
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('owner_session_active', 'true');
-    }
-
-    const memberData = memberDataRes?.data;
-    const subDetails = subDetailsRes?.data;
-    const planData = planDataRes?.data;
-
-    if (memberData) {
-      const membersWithSubs = memberData.map((m: MemberData) => {
-        const mSubs = subDetails ? subDetails.filter((s: SubscriptionData) => s.member_id === m.id) : [];
-        let latestSub: SubscriptionData | null = null;
-        if (mSubs.length > 0) {
-          latestSub = mSubs.reduce((prev: SubscriptionData, current: SubscriptionData) => {
-            return (new Date(prev.end_date) > new Date(current.end_date)) ? prev : current;
-          });
+    try {
+      let session = passedSession;
+      if (!session) {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) {
+          setAuthStatus('guest');
+          return; 
         }
-        
-        let daysLeft = 0;
-        if (latestSub) {
-          const diffTime = new Date(latestSub.end_date).getTime() - new Date().getTime();
-          daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        session = currentSession;
+      }
+
+      const userEmail = session.user.email || '';
+      const userFullName = session.user.user_metadata?.full_name || '';
+
+      const checkAthletePromise = (async () => {
+        if (typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') === 'true') {
+          return false;
         }
+        try {
+          const [emailRes, nameRes] = await Promise.all([
+            userEmail ? supabase.from('members').select('id').eq('email', userEmail).maybeSingle() : Promise.resolve({ data: null }),
+            userFullName ? supabase.from('members').select('id').eq('full_name', userFullName).maybeSingle() : Promise.resolve({ data: null })
+          ]);
+          return !!(emailRes?.data || nameRes?.data);
+        } catch {
+          return false;
+        }
+      })();
 
-        return {
-          ...m,
-          start_date: latestSub ? latestSub.start_date : m.joined_date,
-          end_date: latestSub ? latestSub.end_date : null,
-          days_left: daysLeft > 0 ? daysLeft : 0
-        };
-      });
-      setMembers(membersWithSubs);
-      setTimeout(() => triggerAutomaticExpiryAlerts(membersWithSubs), 1200);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('gymnation_owner_members', JSON.stringify(membersWithSubs));
-      }
-    }
+      const [
+        isAthlete,
+        memberDataRes,
+        subDetailsRes,
+        planDataRes
+      ] = await Promise.all([
+        checkAthletePromise,
+        supabase.from('members').select('*').order('joined_date', { ascending: false }),
+        supabase.from('subscriptions').select('*'),
+        supabase.from('membership_plans').select('*').order('price', { ascending: true })
+      ]);
 
-    if (planData) {
-      setPlans(planData);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('gymnation_owner_plans', JSON.stringify(planData));
+      if (isAthlete && typeof window !== 'undefined' && sessionStorage.getItem('owner_session_active') !== 'true') {
+        router.push('/athlete/dashboard');
+        return;
       }
-    }
+      
+      setAuthStatus('owner');
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('owner_session_active', 'true');
+      }
 
-    if (subDetails) {
-      const revenue = subDetails.reduce((sum, sub) => sum + Number(sub.amount_paid || 0), 0);
-      setTotalRevenue(revenue);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('gymnation_owner_revenue', String(revenue));
+      const memberData = memberDataRes?.data;
+      const subDetails = subDetailsRes?.data;
+      const planData = planDataRes?.data;
+
+      if (memberData) {
+        const membersWithSubs = memberData.map((m: MemberData) => {
+          const mSubs = subDetails ? subDetails.filter((s: SubscriptionData) => s.member_id === m.id) : [];
+          let latestSub: SubscriptionData | null = null;
+          if (mSubs.length > 0) {
+            latestSub = mSubs.reduce((prev: SubscriptionData, current: SubscriptionData) => {
+              return (new Date(prev.end_date) > new Date(current.end_date)) ? prev : current;
+            });
+          }
+          
+          let daysLeft = 0;
+          if (latestSub) {
+            const diffTime = new Date(latestSub.end_date).getTime() - new Date().getTime();
+            daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+
+          return {
+            ...m,
+            start_date: latestSub ? latestSub.start_date : m.joined_date,
+            end_date: latestSub ? latestSub.end_date : null,
+            days_left: daysLeft > 0 ? daysLeft : 0
+          };
+        });
+        setMembers(membersWithSubs);
+        setTimeout(() => triggerAutomaticExpiryAlerts(membersWithSubs), 1200);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('gymnation_owner_members', JSON.stringify(membersWithSubs));
+        }
       }
+
+      if (planData) {
+        setPlans(planData);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('gymnation_owner_plans', JSON.stringify(planData));
+        }
+      }
+
+      if (subDetails) {
+        const revenue = subDetails.reduce((sum, sub) => sum + Number(sub.amount_paid || 0), 0);
+        setTotalRevenue(revenue);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('gymnation_owner_revenue', String(revenue));
+        }
+      }
+    } catch (err) {
+      console.error("Engine initialization error:", err);
+    } finally {
+      setIsSyncing(false);
     }
-    
-    setIsSyncing(false);
   }
 
   useEffect(() => { 
